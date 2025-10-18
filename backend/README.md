@@ -62,9 +62,37 @@ backend/
 
 - `GET /` - Welcome message
 - `GET /api/health` - Health check endpoint (shows if Google Solar API is configured)
-- `GET /api/solar/building-insights` - Get solar building insights for a location
+
+### Solar API Endpoints
+
+#### 1. Building Insights
+- `GET /api/solar/building-insights` - Get comprehensive solar potential analysis
   - Query params:
     - `latitude` (required): Latitude of the location
     - `longitude` (required): Longitude of the location
     - `quality` (optional): Required quality level (LOW, MEDIUM, HIGH)
   - Example: `/api/solar/building-insights?latitude=37.4450&longitude=-122.1390`
+  - Returns: Panel configurations, financial analysis, roof segments, individual panel placement
+
+#### 2. Data Layers (NEW!)
+- `GET /api/solar/data-layers` - Get raw solar data layers and imagery
+  - Query params:
+    - `latitude` (required): Latitude of the location
+    - `longitude` (required): Longitude of the location
+    - `radius_meters` (optional, default: 50): Radius around location
+    - `view` (optional): Data detail level
+      - `FULL` - All layers (default)
+      - `DSM_LAYER` - Digital Surface Model only
+      - `IMAGERY_AND_ANNUAL_FLUX_LAYERS` - Imagery + annual flux
+      - `IMAGERY_AND_ALL_FLUX_LAYERS` - Imagery + all flux layers
+    - `quality` (optional): Required quality level (LOW, MEDIUM, HIGH)
+    - `pixel_size_meters` (optional): Pixel size for resolution control
+    - `exact_quality_required` (optional, default: false): Strict quality matching
+  - Example: `/api/solar/data-layers?latitude=37.4450&longitude=-122.1390&radius_meters=100`
+  - Returns: Download URLs for:
+    - RGB imagery (aerial photos)
+    - DSM (Digital Surface Model - elevation data)
+    - Mask layer (building/roof boundaries)
+    - Annual flux (yearly solar irradiance heatmap)
+    - Monthly flux (monthly irradiance patterns)
+    - Hourly shade (12 time periods showing shade patterns)
