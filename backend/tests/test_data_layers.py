@@ -81,7 +81,7 @@ async def test_data_layers():
         print(f"  Quality: {result3.get('imageryQuality', 'N/A')}")
         
         # Test 4: High quality requirement
-        print("\n\n📍 Test 4: High Quality Requirement")
+        print("\n\nTest 4: High Quality Requirement")
         print("-" * 80)
         result4 = await solar_client.get_data_layers(
             latitude=37.4220936,
@@ -106,8 +106,6 @@ async def main():
     """Run all tests"""
 
     await test_data_layers()
-
-
 
 if __name__ == "__main__":
     asyncio.run(main())
