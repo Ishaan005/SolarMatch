@@ -47,29 +47,20 @@ export default function AnalyzePage() {
 
   // Fetch autocomplete suggestions via our API route
   const fetchAutocompleteSuggestions = async (input: string) => {
-    if (!hasApiKey) {
-      console.log('Skipping autocomplete - API key not configured')
-      return
-    }
+    if (!hasApiKey) return
 
     try {
-      console.log('Fetching autocomplete for:', input)
       const response = await fetch(`/api/autocomplete?input=${encodeURIComponent(input)}`)
       const data = await response.json()
       
-      console.log('Autocomplete response:', data)
-      
       if (data.status === 'OK' && data.predictions) {
-        console.log('Got', data.predictions.length, 'suggestions')
         setSuggestions(data.predictions)
         setShowSuggestions(true)
       } else if (data.status === 'REQUEST_DENIED') {
         console.error('Google Places API error:', data.error_message)
-        console.error('Make sure to enable "Places API (New)" in Google Cloud Console')
         setHasApiKey(false)
         setSuggestions([])
       } else {
-        console.log('No suggestions returned, status:', data.status)
         setSuggestions([])
       }
     } catch (error) {
