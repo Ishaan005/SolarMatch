@@ -20,15 +20,8 @@ export async function GET(request: NextRequest) {
 
     const data = await response.json()
     
-    // Log error details for debugging
     if (data.status === 'REQUEST_DENIED') {
-      console.error('Geocoding API Error:', {
-        status: data.status,
-        error_message: data.error_message,
-        address: address
-      })
-      console.error('Make sure Geocoding API is enabled in Google Cloud Console:')
-      console.error('https://console.cloud.google.com/marketplace/product/google/geocoding-backend.googleapis.com')
+      console.error('Geocoding API Error:', data.error_message)
     }
     
     return NextResponse.json(data)

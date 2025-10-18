@@ -14,8 +14,6 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    console.log('Autocomplete request for:', input)
-    
     // Use the NEW Places API (Text Search - Autocomplete)
     const response = await fetch(
       'https://places.googleapis.com/v1/places:autocomplete',
@@ -34,14 +32,9 @@ export async function GET(request: NextRequest) {
     )
 
     const data = await response.json()
-    console.log('Places API response:', JSON.stringify(data, null, 2))
     
     // Check for API errors
     if (data.error) {
-      console.error('Places API Error:', data.error)
-      console.error('Make sure "Places API (New)" is enabled:')
-      console.error('https://console.cloud.google.com/marketplace/product/google/places-backend.googleapis.com')
-      
       return NextResponse.json({
         status: 'REQUEST_DENIED',
         error_message: data.error.message || 'Places API error',
@@ -60,15 +53,12 @@ export async function GET(request: NextRequest) {
         }
       }))
       
-      console.log('Returning', predictions.length, 'predictions')
-      
       return NextResponse.json({
         status: 'OK',
         predictions: predictions
       })
     }
     
-    console.log('No suggestions found')
     return NextResponse.json({ status: 'ZERO_RESULTS', predictions: [] })
   } catch (error) {
     console.error('Autocomplete error:', error)
