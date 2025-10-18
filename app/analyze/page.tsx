@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import Header from "../../components/Header"
 import Link from "next/link"
 
@@ -19,10 +20,14 @@ const SearchIcon = () => (
 
 export default function AnalyzePage() {
   const [address, setAddress] = useState("")
+  const router = useRouter()
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    console.log("Analyzing address:", address)
+    if (address.trim()) {
+      // Navigate to results page with address as query parameter
+      router.push(`/results?address=${encodeURIComponent(address)}`)
+    }
   }
 
   return (
