@@ -2,7 +2,9 @@
 
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
+import { motion } from "framer-motion"
 import Header from "../../components/Header"
+import GlobeComponent from "./GlobeComponent"
 
 const MapPinIcon = () => (
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -184,22 +186,46 @@ export default function AnalyzePage() {
       <Header />
 
       <main className="max-w-4xl mx-auto px-6 py-12">
-        <div className="max-w-xl mx-auto">
-          <div className="flex justify-center mb-8">
-            <div className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center">
-              <MapPinIcon />
+        <div className="max-w-xl mx-auto relative">
+          {/* 3D Globe Background */}
+          <GlobeComponent coordinates={selectedCoordinates} />
+          
+          {/* Content */}
+          <div className="relative z-10">
+            <div className="flex justify-center mb-8">
+              <motion.div 
+                className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center"
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200, damping: 15 }}
+              >
+                <MapPinIcon />
+              </motion.div>
             </div>
-          </div>
 
-          <h1 className="text-2xl font-semibold text-center text-gray-900 mb-3">
-            Enter Your Address
-          </h1>
+            <motion.h1 
+              className="text-2xl font-semibold text-center text-gray-900 mb-3 drop-shadow-sm"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              Enter Your Address
+            </motion.h1>
 
-          <p className="text-sm text-center text-gray-600 mb-10 max-w-lg mx-auto">
-            We'll analyze your rooftop using satellite imagery to determine its solar potential
-          </p>
+            <motion.p 
+              className="text-sm text-center text-gray-700 mb-10 max-w-lg mx-auto drop-shadow-sm"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+            </motion.p>
 
-          <div className="bg-white rounded-2xl shadow-sm p-8 border border-gray-200">
+            <motion.div 
+              className="bg-white/30 backdrop-blur-lg rounded-2xl shadow-lg p-8 border border-white/50"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 }}
+            >
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="relative">
                 <label 
@@ -231,19 +257,19 @@ export default function AnalyzePage() {
                     onChange={(e) => handleAddressChange(e.target.value)}
                     onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                     placeholder="Enter your street address"
-                    className="w-full px-4 py-2.5 text-sm text-gray-900 border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 focus:outline-none transition-all duration-200 bg-white hover:border-gray-600 placeholder:text-gray-500"
+                    className="w-full px-4 py-2.5 text-sm text-gray-900 border-2 border-white/60 rounded-lg focus:border-blue-400 focus:ring-4 focus:ring-blue-100/50 focus:outline-none transition-all duration-200 bg-white/50 backdrop-blur-sm hover:border-blue-300 placeholder:text-gray-600"
                     required
                     autoComplete="off"
                   />
                   
                   {showSuggestions && suggestions.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white border-2 border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                    <div className="absolute z-10 w-full mt-1 bg-white/95 backdrop-blur-md border-2 border-white/60 rounded-lg shadow-xl max-h-60 overflow-y-auto">
                       {suggestions.map((prediction) => (
                         <button
                           key={prediction.place_id}
                           type="button"
                           onClick={() => handleSelectSuggestion(prediction)}
-                          className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 flex items-start gap-3"
+                          className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50/80 transition-colors border-b border-gray-100/50 last:border-b-0 flex items-start gap-3"
                         >
                           <svg 
                             className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" 
@@ -291,7 +317,7 @@ export default function AnalyzePage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-black text-white py-3 rounded-lg font-medium text-sm hover:bg-gray-900 transition-colors flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="w-full bg-blue-600/80 backdrop-blur-sm text-white py-3 rounded-lg font-medium text-sm hover:bg-blue-700/90 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
               >
                 {isLoading ? (
                   <>
@@ -310,11 +336,12 @@ export default function AnalyzePage() {
               </button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-gray-200">
-              <p className="text-xs text-center text-gray-500 leading-relaxed">
+            <div className="mt-6 pt-6 border-t border-white/40">
+              <p className="text-xs text-center text-gray-700 leading-relaxed drop-shadow-sm">
                 Your privacy matters. We only use your address to provide solar analysis and don't share it with third parties.
               </p>
             </div>
+          </motion.div>
           </div>
         </div>
       </main>
