@@ -96,3 +96,67 @@ backend/
     - Annual flux (yearly solar irradiance heatmap)
     - Monthly flux (monthly irradiance patterns)
     - Hourly shade (12 time periods showing shade patterns)
+
+### GeoTIFF Processing Endpoints (NEW! 🎨)
+
+These endpoints download and process GeoTIFF files from Google Solar API, converting them to PNG images and providing analysis:
+
+#### 3. RGB Imagery
+- `GET /api/solar/rgb-image` - Get aerial/satellite imagery as PNG
+  - Query params:
+    - `latitude` (required), `longitude` (required)
+    - `radius_meters` (optional, default: 50)
+    - `max_width` (optional, default: 1024): Max image width
+    - `max_height` (optional, default: 1024): Max image height
+  - Returns: PNG image of the roof
+  - Example: `/api/solar/rgb-image?latitude=37.4221&longitude=-122.0841`
+
+#### 4. Solar Flux Heatmap
+- `GET /api/solar/annual-flux-heatmap` - Get solar potential as colored heatmap PNG
+  - Query params:
+    - `latitude` (required), `longitude` (required)
+    - `radius_meters` (optional, default: 50)
+    - `colormap` (optional, default: "hot"): hot, viridis, plasma, inferno, magma
+    - `max_width`, `max_height` (optional)
+  - Returns: PNG heatmap showing solar irradiance
+  - Example: `/api/solar/annual-flux-heatmap?latitude=37.4221&longitude=-122.0841&colormap=plasma`
+
+#### 5. Elevation Map
+- `GET /api/solar/elevation-map` - Get Digital Surface Model as colored heightmap PNG
+  - Query params:
+    - `latitude` (required), `longitude` (required)
+    - `radius_meters` (optional, default: 50)
+    - `colormap` (optional, default: "terrain"): terrain, viridis, rainbow
+    - `max_width`, `max_height` (optional)
+  - Returns: PNG heightmap showing building elevation
+  - Example: `/api/solar/elevation-map?latitude=37.4221&longitude=-122.0841`
+
+#### 6. Roof Mask
+- `GET /api/solar/roof-mask` - Get roof/building boundaries as PNG
+  - Query params:
+    - `latitude` (required), `longitude` (required)
+    - `radius_meters` (optional, default: 50)
+    - `max_width`, `max_height` (optional)
+  - Returns: PNG mask (white=building, black=not building)
+  - Example: `/api/solar/roof-mask?latitude=37.4221&longitude=-122.0841`
+
+#### 7. Flux Statistics
+- `GET /api/solar/flux-statistics` - Get statistical analysis of solar flux
+  - Query params:
+    - `latitude` (required), `longitude` (required)
+    - `radius_meters` (optional, default: 50)
+  - Returns: JSON with min, max, mean, median, std deviation
+  - Example: `/api/solar/flux-statistics?latitude=37.4221&longitude=-122.0841`
+
+#### 8. GeoTIFF Metadata
+- `GET /api/solar/geotiff-metadata` - Get metadata for a specific layer
+  - Query params:
+    - `latitude` (required), `longitude` (required)
+    - `radius_meters` (optional, default: 50)
+    - `layer_type` (required): rgb, dsm, mask, or flux
+  - Returns: JSON with dimensions, resolution, bounds, CRS
+  - Example: `/api/solar/geotiff-metadata?latitude=37.4221&longitude=-122.0841&layer_type=dsm`
+
+#### 9. Cache Management
+- `GET /api/solar/cache-info` - Get cache size and location
+- `DELETE /api/solar/cache` - Clear all cached GeoTIFF files
