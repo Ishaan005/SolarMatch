@@ -39,7 +39,7 @@ export default function Home(){
         <Hero />
 
         <section className="max-w-7xl mx-auto px-6 pb-20">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 justify-items-center ">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 justify-items-center text-gray-900">
             <FeatureCard title="Satellite Analysis" color="bg-blue-100" icon={<MapPinIcon />}>
               AI-powered rooftop identification using satellite imagery
             </FeatureCard>

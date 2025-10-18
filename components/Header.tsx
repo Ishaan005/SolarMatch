@@ -11,7 +11,7 @@ export default function Header(){
               <circle cx="12" cy="12" r="3" stroke="#c2410c" strokeWidth="1.5"/>
             </svg>
           </div>
-          <span className="font-semibold text-sm text-gray-900">SolarMatch</span>
+          <span className="font-semibold text-xl text-gray-900">SolarMatch</span>
         </div>
       </div>
     </header>
