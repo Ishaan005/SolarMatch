@@ -14,9 +14,13 @@ source venv/bin/activate  # On macOS/Linux
 pip install -r requirements.txt
 ```
 
-3. Create a `.env` file from `.env.example`:
+3. Set up your Google Solar API key:
+   - Get your API key from [Google Cloud Console](https://console.cloud.google.com/)
+   - Enable the Solar API for your project
+   - Copy `.env.example` to `.env` and add your API key:
 ```bash
 cp .env.example .env
+# Edit .env and replace YOUR_API_KEY with your actual Google Solar API key
 ```
 
 ## Running the Backend
@@ -57,5 +61,10 @@ backend/
 ## Available Endpoints
 
 - `GET /` - Welcome message
-- `GET /api/health` - Health check endpoint
-- `GET /api/solar/data` - Sample solar data endpoint
+- `GET /api/health` - Health check endpoint (shows if Google Solar API is configured)
+- `GET /api/solar/building-insights` - Get solar building insights for a location
+  - Query params:
+    - `latitude` (required): Latitude of the location
+    - `longitude` (required): Longitude of the location
+    - `quality` (optional): Required quality level (LOW, MEDIUM, HIGH)
+  - Example: `/api/solar/building-insights?latitude=37.4450&longitude=-122.1390`
