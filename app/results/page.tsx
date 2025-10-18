@@ -9,7 +9,6 @@ export default function ResultsPage() {
   const router = useRouter()
   const addressFromUrl = searchParams.get('address') || "Sample Address"
 
-  // Placeholder values - will be replaced with backend data
   const [results] = useState({
     address: addressFromUrl,
     solarSuitability: 0,
@@ -108,7 +107,7 @@ export default function ResultsPage() {
                     </svg>
                     <span className="text-lg text-gray-600">Installation Cost</span>
                   </div>
-                  <p className="text-4xl font-bold text-gray-900">€{results.installationCost.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">€{results.installationCost.toLocaleString()}</p>
                 </div>
 
                 {/* Payback Period */}
@@ -119,7 +118,7 @@ export default function ResultsPage() {
                     </svg>
                     <span className="text-lg text-gray-600">Payback Period</span>
                   </div>
-                  <p className="text-4xl font-bold text-gray-900">{results.paybackPeriod} years</p>
+                  <p className="text-2xl font-bold text-gray-900">{results.paybackPeriod} years</p>
                 </div>
 
                 {/* Annual Savings */}
@@ -130,7 +129,7 @@ export default function ResultsPage() {
                     </svg>
                     <span className="text-lg text-gray-600">Annual Savings</span>
                   </div>
-                  <p className="text-4xl font-bold text-gray-900">€{results.annualSavings.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">€{results.annualSavings.toLocaleString()}</p>
                 </div>
 
                 {/* CO2 Reduction */}
@@ -141,7 +140,7 @@ export default function ResultsPage() {
                     </svg>
                     <span className="text-lg text-gray-600">CO₂ Reduction</span>
                   </div>
-                  <p className="text-4xl font-bold text-gray-900">{results.co2Reduction.toLocaleString()} kg</p>
+                  <p className="text-2xl font-bold text-gray-900">{results.co2Reduction.toLocaleString()} kg</p>
                 </div>
               </div>
             </div>

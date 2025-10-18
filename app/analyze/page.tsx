@@ -25,7 +25,6 @@ export default function AnalyzePage() {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     if (address.trim()) {
-      // Navigate to results page with address as query parameter
       router.push(`/results?address=${encodeURIComponent(address)}`)
     }
   }
