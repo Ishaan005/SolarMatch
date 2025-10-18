@@ -173,19 +173,16 @@ export default function AnalyzePage() {
   }, [])
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/30 to-green-50/40">
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-white to-green-50 relative overflow-hidden">
       <Header />
 
-      <main className="max-w-4xl mx-auto px-6 py-12">
-        <div className="max-w-xl mx-auto relative">
-          {/* 3D Globe Background */}
-          <GlobeComponent coordinates={selectedCoordinates} />
-          
-          {/* Content */}
-          <div className="relative z-10">
-            <div className="flex justify-center mb-8">
+      <main className="relative z-10 max-w-7xl mx-auto px-6 py-12">
+        <div className="grid lg:grid-cols-2 gap-12 items-center min-h-[calc(100vh-200px)]">
+          {/* Left Column - Form */}
+          <div className="space-y-8">
+            <div className="flex justify-center lg:justify-start">
               <motion.div 
-                className="w-20 h-20 rounded-full bg-blue-100 flex items-center justify-center"
+                className="w-20 h-20 rounded-full bg-white shadow-lg flex items-center justify-center"
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: "spring", stiffness: 200, damping: 15 }}
@@ -194,28 +191,24 @@ export default function AnalyzePage() {
               </motion.div>
             </div>
 
-            <motion.h1 
-              className="text-2xl font-semibold text-center text-gray-900 mb-3 drop-shadow-sm"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
+            <motion.div
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
               transition={{ delay: 0.1 }}
             >
-              Enter Your Address
-            </motion.h1>
-
-            <motion.p 
-              className="text-sm text-center text-gray-700 mb-10 max-w-lg mx-auto drop-shadow-sm"
-              initial={{ opacity: 0, y: -20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-            >
-            </motion.p>
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                Find Your Solar Potential
+              </h1>
+              <p className="text-lg text-gray-600 mb-8">
+                Enter your address to analyze your rooftop's solar energy potential using satellite imagery
+              </p>
+            </motion.div>
 
             <motion.div 
-              className="bg-white/30 backdrop-blur-lg rounded-2xl shadow-lg p-8 border border-white/50"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
+              className="bg-white rounded-3xl shadow-2xl p-8 border border-gray-100"
+              initial={{ opacity: 0, x: -50 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
             >
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="relative">
@@ -248,19 +241,19 @@ export default function AnalyzePage() {
                     onChange={(e) => handleAddressChange(e.target.value)}
                     onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
                     placeholder="Enter your street address"
-                    className="w-full px-4 py-2.5 text-sm text-gray-900 border-2 border-white/60 rounded-lg focus:border-blue-400 focus:ring-4 focus:ring-blue-100/50 focus:outline-none transition-all duration-200 bg-white/50 backdrop-blur-sm hover:border-blue-300 placeholder:text-gray-600"
+                    className="w-full px-4 py-2.5 text-sm text-gray-900 border-2 border-gray-200 rounded-lg focus:border-blue-500 focus:ring-4 focus:ring-blue-100 focus:outline-none transition-all duration-200 bg-white hover:border-gray-300 placeholder:text-gray-500"
                     required
                     autoComplete="off"
                   />
                   
                   {showSuggestions && suggestions.length > 0 && (
-                    <div className="absolute z-10 w-full mt-1 bg-white/95 backdrop-blur-md border-2 border-white/60 rounded-lg shadow-xl max-h-60 overflow-y-auto">
+                    <div className="absolute z-20 w-full mt-1 bg-white backdrop-blur-sm border border-gray-200 rounded-lg shadow-2xl max-h-60 overflow-y-auto">
                       {suggestions.map((prediction) => (
                         <button
                           key={prediction.place_id}
                           type="button"
                           onClick={() => handleSelectSuggestion(prediction)}
-                          className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50/80 transition-colors border-b border-gray-100/50 last:border-b-0 flex items-start gap-3"
+                          className="w-full px-4 py-3 text-left text-sm hover:bg-blue-50 transition-colors border-b border-gray-100 last:border-b-0 flex items-start gap-3"
                         >
                           <svg 
                             className="w-5 h-5 text-gray-400 mt-0.5 flex-shrink-0" 
@@ -308,7 +301,7 @@ export default function AnalyzePage() {
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-blue-600/80 backdrop-blur-sm text-white py-3 rounded-lg font-medium text-sm hover:bg-blue-700/90 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl"
+                className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 rounded-lg font-semibold text-sm hover:from-blue-700 hover:to-blue-800 transition-all duration-200 flex items-center justify-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed shadow-lg hover:shadow-xl transform hover:-translate-y-0.5"
               >
                 {isLoading ? (
                   <>
@@ -327,14 +320,47 @@ export default function AnalyzePage() {
               </button>
             </form>
 
-            <div className="mt-6 pt-6 border-t border-white/40">
-              <p className="text-xs text-center text-gray-700 leading-relaxed drop-shadow-sm">
-                Your privacy matters. We only use your address to provide solar analysis and don't share it with third parties.
+            <div className="mt-6 pt-6 border-t border-gray-200">
+              <p className="text-xs text-center lg:text-left text-gray-600 leading-relaxed">
+                Your privacy matters. We only use your address to provide solar analysis.
               </p>
             </div>
           </motion.div>
-          </div>
         </div>
+        {/* End Left Column */}
+
+        {/* Right Column - Globe */}
+        <motion.div 
+          className="relative h-[450px] lg:h-[500px] flex items-center justify-center"
+          initial={{ opacity: 0, x: 50 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <GlobeComponent coordinates={selectedCoordinates} />
+          
+          {/* Globe instruction text */}
+          {!selectedCoordinates && (
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 bg-white/90 backdrop-blur-sm px-6 py-3 rounded-full shadow-lg border border-gray-200">
+              <p className="text-sm text-gray-700 font-medium">
+                Enter an address to see your location
+              </p>
+            </div>
+          )}
+          
+          {selectedCoordinates && (
+            <div className="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 bg-gradient-to-r from-blue-500 to-blue-600 text-white px-6 py-3 rounded-full shadow-xl">
+              <p className="text-sm font-semibold flex items-center gap-2">
+                <svg className="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
+                  <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+                </svg>
+                Location Found: {selectedCoordinates.lat.toFixed(4)}°, {selectedCoordinates.lng.toFixed(4)}°
+              </p>
+            </div>
+          )}
+        </motion.div>
+        {/* End Right Column */}
+        </div>
+        {/* End Grid */}
       </main>
     </div>
   )

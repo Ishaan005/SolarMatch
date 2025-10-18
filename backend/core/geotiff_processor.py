@@ -28,6 +28,23 @@ class GeoTIFFProcessor:
         self.cache_dir = Path(cache_dir) if cache_dir else Path(tempfile.gettempdir()) / "solar_geotiff_cache"
         self.cache_dir.mkdir(parents=True, exist_ok=True)
         self.api_key = api_key
+        # Persistent HTTP client for connection pooling (reuses TCP connections)
+        self._http_client: Optional[httpx.AsyncClient] = None
+    
+    async def get_http_client(self) -> httpx.AsyncClient:
+        """Get or create persistent HTTP client for connection reuse"""
+        if self._http_client is None or self._http_client.is_closed:
+            self._http_client = httpx.AsyncClient(
+                timeout=60.0,
+                http2=True,  # Enable HTTP/2 for multiplexing
+                limits=httpx.Limits(max_keepalive_connections=5, max_connections=10)
+            )
+        return self._http_client
+    
+    async def close(self):
+        """Close HTTP client"""
+        if self._http_client and not self._http_client.is_closed:
+            await self._http_client.aclose()
     
     async def download_geotiff(self, url: str, cache_key: Optional[str] = None, api_key: Optional[str] = None) -> bytes:
         """
@@ -53,18 +70,18 @@ class GeoTIFFProcessor:
             separator = '&' if '?' in url else '?'
             url = f"{url}{separator}key={key}"
         
-        # Download file
-        async with httpx.AsyncClient(timeout=60.0) as client:
-            response = await client.get(url)
-            response.raise_for_status()
-            data = response.content
-            
-            # Cache if key provided
-            if cache_key:
-                cache_file = self.cache_dir / f"{cache_key}.tif"
-                cache_file.write_bytes(data)
-            
-            return data
+        # Download file using persistent connection
+        client = await self.get_http_client()
+        response = await client.get(url)
+        response.raise_for_status()
+        data = response.content
+        
+        # Cache if key provided
+        if cache_key:
+            cache_file = self.cache_dir / f"{cache_key}.tif"
+            cache_file.write_bytes(data)
+        
+        return data
     
     def read_geotiff_metadata(self, geotiff_data: bytes) -> Dict[str, Any]:
         """
@@ -169,6 +186,65 @@ class GeoTIFFProcessor:
             Path(output_path).write_bytes(png_data)
         
         return png_data
+    
+    def rgb_geotiff_to_jpeg(
+        self,
+        geotiff_data: bytes,
+        output_path: Optional[str] = None,
+        max_size: Tuple[int, int] = (1024, 1024),
+        quality: int = 85,
+        optimize: bool = True
+    ) -> bytes:
+        """
+        Convert RGB GeoTIFF to optimized JPEG (faster and smaller than PNG)
+        
+        Args:
+            geotiff_data: Raw GeoTIFF file content
+            output_path: Optional path to save JPEG
+            max_size: Maximum dimensions (width, height)
+            quality: JPEG quality (1-100, default 85 for good balance)
+            optimize: Enable JPEG optimization (slower encoding, smaller file)
+            
+        Returns:
+            JPEG image data as bytes
+        """
+        with io.BytesIO(geotiff_data) as f:
+            with rasterio.open(f) as src:
+                # Read RGB bands
+                r = src.read(1)
+                g = src.read(2)
+                b = src.read(3)
+        
+        # Stack into RGB array
+        img_array = np.dstack([r, g, b])
+        
+        # Normalize to 0-255 if needed
+        if img_array.dtype != np.uint8:
+            img_array = np.clip(img_array, 0, 255).astype(np.uint8)
+        
+        # Create PIL Image
+        img = Image.fromarray(img_array, mode='RGB')
+        
+        # Resize if larger than max_size (using high-quality Lanczos)
+        if img.width > max_size[0] or img.height > max_size[1]:
+            img.thumbnail(max_size, Image.Resampling.LANCZOS)
+        
+        # Save to bytes as JPEG
+        output = io.BytesIO()
+        img.save(
+            output, 
+            format='JPEG',
+            quality=quality,
+            optimize=optimize,
+            progressive=True  # Progressive JPEG for faster perceived loading
+        )
+        jpeg_data = output.getvalue()
+        
+        # Optionally save to file
+        if output_path:
+            Path(output_path).write_bytes(jpeg_data)
+        
+        return jpeg_data
     
     def flux_to_heatmap(
         self,
