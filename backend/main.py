@@ -5,6 +5,7 @@ from typing import Optional
 from core.solar_api import solar_client
 from core.config import settings
 from core.geotiff_processor import geotiff_processor
+from core.resultMath import SolarAnalysis
 
 app = FastAPI(title="SolarMatch API")
 
@@ -360,3 +361,31 @@ async def get_cache_info():
         "cache_size_bytes": cache_size,
         "cache_size_mb": round(cache_size / (1024 * 1024), 2)
     }
+
+
+@app.get("/api/solar/analysis")
+async def get_solar_analysis(
+    latitude: float = Query(..., description="Latitude of the location"),
+    longitude: float = Query(..., description="Longitude of the location"),
+    radius_meters: float = Query(50.0, description="Radius in meters", ge=0)
+):
+    """
+    Performs a full solar analysis for a location.
+    """
+    data_layers = await solar_client.get_data_layers(
+        latitude=latitude,
+        longitude=longitude,
+        radius_meters=radius_meters,
+        view="FULL"
+    )
+
+    if not data_layers:
+        raise HTTPException(status_code=404, detail="Could not retrieve data for the location.")
+
+    analysis = SolarAnalysis(data_layers)
+    results = await analysis.analyze()
+
+    if "error" in results:
+        raise HTTPException(status_code=400, detail=results["error"])
+
+    return results

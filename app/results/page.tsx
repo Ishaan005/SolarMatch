@@ -11,7 +11,7 @@ function ResultsContent() {
   const lat = searchParams.get('lat')
   const lng = searchParams.get('lng')
 
-  const [results, setResults] = useState({
+  const [results, setResults] = useState<any>({ // Using 'any' for now, consider a proper type
     address: addressFromUrl,
     solarSuitability: 0,
     suitabilityText: "Calculating...",
@@ -21,50 +21,92 @@ function ResultsContent() {
     co2Reduction: 0,
     usableSpace: 0,
     capacity: 0,
-    satelliteImage: "" // Will be loaded from backend
-  })
+    satelliteImage: "", // Will be loaded from backend
+    analysis: null, // To store the new analysis data
+  });
 
-  const [isLoadingImage, setIsLoadingImage] = useState(true)
-  const [imageError, setImageError] = useState(false)
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [isLoadingImage, setIsLoadingImage] = useState(true);
+  const [imageError, setImageError] = useState(false);
 
-  // Fetch satellite image from backend
   useEffect(() => {
-    const fetchSatelliteImage = async () => {
-      try {
-        setIsLoadingImage(true)
-        setImageError(false)
-        
-        const url = `http://localhost:8000/api/solar/rgb-image?latitude=${lat}&longitude=${lng}&radius_meters=50&max_width=1024&max_height=1024`
-        
-        const response = await fetch(url)
+    const fetchAnalysisAndImage = async () => {
+      if (!lat || !lng) {
+        setError("Latitude and longitude are required.");
+        setIsLoading(false);
+        setIsLoadingImage(false);
+        return;
+      }
 
-        if (!response.ok) {
-          throw new Error(`Failed to fetch satellite image: ${response.status}`)
+      try {
+        setIsLoading(true);
+        setError(null);
+        
+        // Fetch analysis data
+        const analysisUrl = `http://localhost:8000/api/solar/analysis?latitude=${lat}&longitude=${lng}&radius_meters=50`;
+        const analysisResponse = await fetch(analysisUrl);
+
+        if (!analysisResponse.ok) {
+          throw new Error(`Failed to fetch analysis: ${analysisResponse.status}`);
         }
 
-        const blob = await response.blob()
-        const imageUrl = URL.createObjectURL(blob)
+        const data = await analysisResponse.json();
         
+        // A simple model for solar suitability based on mean flux
+        const meanFlux = data.flux_stats?.mean || 0;
+        const solarSuitability = Math.min(100, Math.round((meanFlux / 1500) * 100));
+
+        // Simplified financial model
+        const usableSpace = data.estimated_roof_area_sq_meters || 0;
+        const capacity = parseFloat((usableSpace / 8).toFixed(2)); // Approx. 8 sqm per kW
+        const installationCost = Math.round(capacity * 1200); // Approx. €1200 per kW
+        const annualEnergy = data.estimated_annual_energy_kwh || 0;
+        const annualSavings = Math.round(annualEnergy * 0.30); // Approx. €0.30 per kWh
+        const paybackPeriod = annualSavings > 0 ? parseFloat((installationCost / annualSavings).toFixed(1)) : 0;
+        const co2Reduction = Math.round(annualEnergy * 0.4); // Approx. 0.4 kg CO2 per kWh
+
         setResults(prev => ({
           ...prev,
-          satelliteImage: imageUrl
-        }))
+          analysis: data,
+          solarSuitability,
+          suitabilityText: `Based on an average solar flux of ${Math.round(meanFlux)} kWh/kW/year.`,
+          usableSpace: usableSpace,
+          capacity: capacity,
+          installationCost,
+          annualSavings,
+          paybackPeriod,
+          co2Reduction,
+        }));
+
+        // Fetch satellite image
+        if (data.imagery_urls?.rgb) {
+            setIsLoadingImage(true);
+            const imageUrl = `http://localhost:8000/api/solar/rgb-image?latitude=${lat}&longitude=${lng}&radius_meters=50`;
+            const imageResponse = await fetch(imageUrl);
+            if (!imageResponse.ok) {
+                throw new Error(`Failed to fetch satellite image: ${imageResponse.status}`);
+            }
+            const blob = await imageResponse.blob();
+            const objectURL = URL.createObjectURL(blob);
+            setResults(prev => ({ ...prev, satelliteImage: objectURL }));
+            setIsLoadingImage(false);
+        } else {
+            setImageError(true);
+            setIsLoadingImage(false);
+        }
         
-        setIsLoadingImage(false)
-      } catch (error) {
-        console.error('Error fetching satellite image:', error)
-        setImageError(true)
-        setIsLoadingImage(false)
+      } catch (error: any) {
+        console.error('Error fetching data:', error);
+        setError(error.message || "An unknown error occurred.");
+        setImageError(true);
+      } finally {
+        setIsLoading(false);
       }
-    }
-    
-    if (lat && lng) {
-      fetchSatelliteImage()
-    } else {
-      setIsLoadingImage(false)
-      setImageError(true)
-    }
-  }, [lat, lng])
+    };
+
+    fetchAnalysisAndImage();
+  }, [lat, lng]);
 
   // Cleanup object URL when component unmounts
   useEffect(() => {
