@@ -372,20 +372,33 @@ async def get_solar_analysis(
     """
     Performs a full solar analysis for a location.
     """
-    data_layers = await solar_client.get_data_layers(
-        latitude=latitude,
-        longitude=longitude,
-        radius_meters=radius_meters,
-        view="FULL"
-    )
+    try:
+        data_layers = await solar_client.get_data_layers(
+            latitude=latitude,
+            longitude=longitude,
+            radius_meters=radius_meters
+            # Removed view parameter - let API return all available layers
+        )
 
-    if not data_layers:
-        raise HTTPException(status_code=404, detail="Could not retrieve data for the location.")
+        if not data_layers:
+            raise HTTPException(status_code=404, detail="Could not retrieve data for the location.")
 
-    analysis = SolarAnalysis(data_layers)
-    results = await analysis.analyze()
+        # Log what data we received for debugging
+        print(f"Data layers keys: {list(data_layers.keys())}")
+        print(f"Has annualFluxUrl: {bool(data_layers.get('annualFluxUrl'))}")
 
-    if "error" in results:
-        raise HTTPException(status_code=400, detail=results["error"])
+        analysis = SolarAnalysis(data_layers)
+        results = await analysis.analyze()
 
-    return results
+        if "error" in results:
+            raise HTTPException(
+                status_code=400, 
+                detail=results.get("message", results["error"])
+            )
+
+        return results
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"Error in solar analysis: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")

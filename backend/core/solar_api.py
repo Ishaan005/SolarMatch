@@ -78,13 +78,14 @@ class SolarAPIClient:
             latitude: Latitude of the location
             longitude: Longitude of the location
             radius_meters: Radius in meters around the location (default: 50.0)
-            view: Level of detail in response. Options:
-                  - None (default): Returns all available layers
-                  - "FULL": Complete response with all data
+            view: Level of detail in response. Valid options per Google Solar API:
+                  - None (default/recommended): Returns all available layers
+                  - "FULL_LAYERS": Complete response with all data layers
                   - "DSM_LAYER": Digital Surface Model only
                   - "IMAGERY_LAYER": RGB imagery only
                   - "IMAGERY_AND_ANNUAL_FLUX_LAYERS": Imagery + annual flux
                   - "IMAGERY_AND_ALL_FLUX_LAYERS": Imagery + all flux layers
+                  Note: If unsure, omit this parameter to get all available data
             required_quality: Optional quality level (LOW, MEDIUM, HIGH)
             pixel_size_meters: Size of each pixel in meters (affects resolution)
             exact_quality_required: If True, return only exact quality match

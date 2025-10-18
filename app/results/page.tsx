@@ -26,10 +26,90 @@ function ResultsContent() {
 
   const [isLoadingImage, setIsLoadingImage] = useState(true)
   const [imageError, setImageError] = useState(false)
+  const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true)
+  const [analysisError, setAnalysisError] = useState<string | null>(null)
 
-    // Fetch satellite image from backend
+  // Fetch solar analysis data from backend
+  useEffect(() => {
+    const fetchAnalysis = async () => {
+      if (!lat || !lng) {
+        setIsLoadingAnalysis(false)
+        setAnalysisError("No coordinates provided")
+        return
+      }
+
+      try {
+        setIsLoadingAnalysis(true)
+        setAnalysisError(null)
+        
+        const analysisUrl = `http://localhost:8000/api/solar/analysis?latitude=${lat}&longitude=${lng}&radius_meters=50`
+        const response = await fetch(analysisUrl)
+
+        if (!response.ok) {
+          const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }))
+          console.error('Analysis API Error:', response.status, errorData)
+          setAnalysisError(errorData.detail || 'Failed to fetch solar analysis')
+          setIsLoadingAnalysis(false)
+          return
+        }
+
+        const data = await response.json()
+        
+        // Calculate solar suitability based on mean flux
+        // Good solar potential: 1200-1500+ kWh/kW/year
+        const meanFlux = data.flux_stats?.mean || 0
+        const solarSuitability = Math.min(100, Math.round((meanFlux / 1500) * 100))
+        
+        let suitabilityText = "Poor solar potential"
+        if (solarSuitability >= 80) {
+          suitabilityText = "Excellent solar potential"
+        } else if (solarSuitability >= 60) {
+          suitabilityText = "Good solar potential"
+        } else if (solarSuitability >= 40) {
+          suitabilityText = "Fair solar potential"
+        }
+        
+        // Financial calculations
+        const usableSpace = data.estimated_roof_area_sq_meters || 0
+        const capacity = parseFloat((usableSpace / 8).toFixed(2)) // ~8 sqm per kW
+        const installationCost = Math.round(capacity * 1200) // €1200 per kW typical cost
+        const annualEnergy = data.estimated_annual_energy_kwh || 0
+        const annualSavings = Math.round(annualEnergy * 0.30) // €0.30 per kWh electricity cost
+        const paybackPeriod = annualSavings > 0 ? parseFloat((installationCost / annualSavings).toFixed(1)) : 0
+        const co2Reduction = Math.round(annualEnergy * 0.4) // 0.4 kg CO2 per kWh
+        
+        setResults(prev => ({
+          ...prev,
+          solarSuitability,
+          suitabilityText,
+          usableSpace,
+          capacity,
+          installationCost,
+          annualSavings,
+          paybackPeriod,
+          co2Reduction
+        }))
+        
+        setIsLoadingAnalysis(false)
+      } catch (error) {
+        console.error('Error fetching analysis:', error)
+        setAnalysisError(error instanceof Error ? error.message : 'Failed to fetch analysis')
+        setIsLoadingAnalysis(false)
+      }
+    }
+    
+    fetchAnalysis()
+  }, [lat, lng])
+
+  // Fetch satellite image from backend
   useEffect(() => {
     const fetchSatelliteImage = async () => {
+      if (!lat || !lng) {
+        setIsLoadingImage(false)
+        setImageError(true)
+        return
+      }
+
       try {
         setIsLoadingImage(true)
         setImageError(false)
@@ -59,12 +139,7 @@ function ResultsContent() {
       }
     }
     
-    if (lat && lng) {
-      fetchSatelliteImage()
-    } else {
-      setIsLoadingImage(false)
-      setImageError(true)
-    }
+    fetchSatelliteImage()
   }, [lat, lng])
 
   // Cleanup object URL when component unmounts
@@ -83,9 +158,23 @@ function ResultsContent() {
       <main className="max-w-6xl mx-auto px-6 py-8">
         {/* Status Badge */}
         <div className="mb-3">
-          <span className="inline-block px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-            Analysis Complete
-          </span>
+          {isLoadingAnalysis ? (
+            <span className="inline-block px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+              <svg className="inline w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              Analyzing Solar Potential...
+            </span>
+          ) : analysisError ? (
+            <span className="inline-block px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+              Analysis Failed
+            </span>
+          ) : (
+            <span className="inline-block px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+              Analysis Complete
+            </span>
+          )}
         </div>
 
         {/* Title */}
@@ -156,18 +245,36 @@ function ResultsContent() {
               </div>
 
               {/* Percentage and Progress Bar */}
-              <div className="mb-2">
-                <div className="text-4xl font-bold text-green-600 mb-2">
-                  {results.solarSuitability}%
+              {isLoadingAnalysis ? (
+                <div className="text-center py-4">
+                  <div className="animate-pulse">
+                    <div className="h-10 bg-gray-200 rounded w-24 mb-2 mx-auto"></div>
+                    <div className="h-2.5 bg-gray-200 rounded w-full mb-2"></div>
+                    <div className="h-3 bg-gray-200 rounded w-3/4 mx-auto"></div>
+                  </div>
                 </div>
-                <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
-                  <div 
-                    className="bg-gradient-to-r from-gray-800 to-gray-600 h-2.5 rounded-full transition-all duration-500"
-                    style={{ width: `${results.solarSuitability}%` }}
-                  ></div>
+              ) : analysisError ? (
+                <div className="text-center py-4">
+                  <svg className="w-10 h-10 mx-auto mb-2 text-yellow-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
+                  <p className="text-sm font-semibold text-gray-900 mb-1">Unable to calculate solar potential</p>
+                  <p className="text-xs text-gray-600">{analysisError}</p>
                 </div>
-                <p className="text-xs text-gray-600">{results.suitabilityText}</p>
-              </div>
+              ) : (
+                <div className="mb-2">
+                  <div className="text-4xl font-bold text-green-600 mb-2">
+                    {results.solarSuitability}%
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-2.5 mb-2">
+                    <div 
+                      className="bg-gradient-to-r from-green-500 to-green-600 h-2.5 rounded-full transition-all duration-500"
+                      style={{ width: `${results.solarSuitability}%` }}
+                    ></div>
+                  </div>
+                  <p className="text-xs text-gray-600">{results.suitabilityText}</p>
+                </div>
+              )}
             </div>
 
             {/* Financial Overview */}
@@ -176,7 +283,21 @@ function ResultsContent() {
                 Financial Overview
               </h2>
 
-              <div className="grid grid-cols-2 gap-6">
+              {isLoadingAnalysis ? (
+                <div className="grid grid-cols-2 gap-6">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="bg-gray-50 rounded-xl p-6 animate-pulse">
+                      <div className="h-6 bg-gray-200 rounded w-3/4 mb-4"></div>
+                      <div className="h-8 bg-gray-200 rounded w-1/2"></div>
+                    </div>
+                  ))}
+                </div>
+              ) : analysisError ? (
+                <div className="text-center py-8 text-gray-500">
+                  <p>Financial data unavailable</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-6">
                 {/* Installation Cost */}
                 <div className="bg-blue-50 rounded-xl p-6">
                   <div className="flex items-center gap-2 mb-4">
@@ -221,6 +342,7 @@ function ResultsContent() {
                   <p className="text-2xl font-bold text-gray-900">{results.co2Reduction.toLocaleString()} kg</p>
                 </div>
               </div>
+              )}
             </div>
           </div>
         </div>
