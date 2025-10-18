@@ -1,7 +1,6 @@
 @import "tailwindcss";
 
 :root {
-  /* primary palette */
   --smoke: #f7faf9;
   --mint-50: #f6fffb;
   --mint-100: #ecfff5;
