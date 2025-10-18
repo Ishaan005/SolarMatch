@@ -42,7 +42,8 @@ function ResultsContent() {
         setIsLoadingAnalysis(true)
         setAnalysisError(null)
         
-        const analysisUrl = `http://localhost:8000/api/solar/analysis?latitude=${lat}&longitude=${lng}&radius_meters=50`
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+        const analysisUrl = `${backendUrl}/api/solar/analysis?latitude=${lat}&longitude=${lng}&radius_meters=50`
         const response = await fetch(analysisUrl)
 
         if (!response.ok) {
@@ -115,7 +116,8 @@ function ResultsContent() {
         setImageError(false)
         
         // Use optimized parameters for faster loading
-        const url = `http://localhost:8000/api/solar/rgb-image?latitude=${lat}&longitude=${lng}&radius_meters=50&max_width=800&max_height=800`
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+        const url = `${backendUrl}/api/solar/rgb-image?latitude=${lat}&longitude=${lng}&radius_meters=50&max_width=800&max_height=800`
         
         const response = await fetch(url)
 
