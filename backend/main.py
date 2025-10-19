@@ -2,13 +2,21 @@ from fastapi import FastAPI, Query, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from typing import Optional
+from pydantic import BaseModel
 from core.solar_api import solar_client
 from core.config import settings
 from core.geotiff_processor import geotiff_processor
 from core.resultMath import SolarAnalysis
 from core.unified_solar_service import unified_solar_service
+# Import chatbot components
+from core.chatbot import ChatbotService, ChatRequest, ChatResponse
+from core.chatbot.models import PredefinedQuestionsResponse, HealthCheckResponse as ChatbotHealthResponse
+
 
 app = FastAPI(title="SolarMatch API")
+
+# Initialize chatbot service
+chatbot_service = None
 
 # cors to allow requests from NextJS frontend
 app.add_middleware(
@@ -18,11 +26,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup"""
+    global chatbot_service
+    try:
+        chatbot_service = ChatbotService()
+        await chatbot_service.initialize()
+        print("✅ Chatbot service initialized successfully")
+    except Exception as e:
+        print(f"⚠️ Warning: Chatbot service initialization failed: {e}")
+        # Create a dummy service so the app doesn't crash
+        chatbot_service = ChatbotService()
 
 @app.get("/")
 async def root():
     return {"message": "Welcome to SolarMatch API"}
+
 
 
 @app.get("/api/health")
@@ -418,3 +438,86 @@ async def get_solar_analysis(
             status_code=500, 
             detail=f"Unable to analyze solar potential for this location: {str(e)}"
         )
+
+
+# ===== CHATBOT ENDPOINTS =====
+
+@app.post("/api/chatbot", response_model=ChatResponse)
+async def chat_with_bot(request: ChatRequest):
+    """
+    Chat with the solar energy AI assistant.
+    
+    Supports conversation history and session management.
+    
+    Example request:
+    {
+        "message": "What solar grants are available in Ireland?",
+        "session_id": "optional-session-id",
+        "conversation_history": []
+    }
+    """
+    if chatbot_service is None:
+        raise HTTPException(
+            status_code=503,
+            detail="Chatbot service not initialized. Please try again in a moment."
+        )
+    
+    try:
+        response = await chatbot_service.handle_chat(request)
+        return response
+    except Exception as e:
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Chatbot error: {str(e)}"
+        )
+
+
+@app.get("/api/chatbot/questions", response_model=PredefinedQuestionsResponse)
+async def get_predefined_questions():
+    """
+    Get list of predefined showcase questions for the chatbot.
+    
+    Useful for providing quick-start prompts to users.
+    """
+    if chatbot_service is None:
+        raise HTTPException(status_code=503, detail="Chatbot service not initialized")
+    return chatbot_service.get_predefined_questions()
+
+
+@app.delete("/api/chatbot/session/{session_id}")
+async def clear_chat_session(session_id: str):
+    """
+    Clear a specific chat session's conversation history.
+    
+    Returns success status.
+    """
+    if chatbot_service is None:
+        raise HTTPException(status_code=503, detail="Chatbot service not initialized")
+    
+    success = chatbot_service.clear_session(session_id)
+    if success:
+        return {"message": f"Session {session_id} cleared successfully"}
+    else:
+        raise HTTPException(
+            status_code=404, 
+            detail=f"Session {session_id} not found"
+        )
+
+
+@app.get("/api/chatbot/health")
+async def chatbot_health_check():
+    """
+    Check chatbot service health and API connectivity.
+    """
+    if chatbot_service is None:
+        return {
+            "status": "initializing",
+            "gemini_api_configured": False,
+            "gemini_api_accessible": False,
+            "model": "unknown",
+            "active_sessions": 0
+        }
+    
+    health = await chatbot_service.health_check()
+    return health
+
