@@ -32,25 +32,67 @@ const UsersIcon = () => (
 
 export default function Home(){
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50/30 via-orange-50/20 to-yellow-50/30">
+    <div className="min-h-screen bg-gradient-to-b from-white via-amber-50/20 to-orange-50/30">
       <Header />
       <main>
         <Hero />
 
-        <section className="max-w-7xl mx-auto px-6 pb-24 pt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 justify-items-center text-gray-900">
-            <FeatureCard title="Satellite Analysis" color="bg-blue-50/90" icon={<MapPinIcon />}>
-              AI-powered rooftop identification using satellite imagery
-            </FeatureCard>
-            <FeatureCard title="Cost & Savings" color="bg-amber-50/90" icon={<SunIcon />}>
-              Instant estimates on installation costs and payback period
-            </FeatureCard>
-            <FeatureCard title="CO₂ Reduction" color="bg-emerald-50/90" icon={<TrendingDownIcon />}>
-              See your environmental impact and carbon savings
-            </FeatureCard>
-            <FeatureCard title="Solar Co-ops" color="bg-purple-50/90" icon={<UsersIcon />}>
-              Join neighbours to share costs and go solar together
-            </FeatureCard>
+        {/* Features Section - Redesigned */}
+        <section className="relative py-20 overflow-hidden">
+          {/* Subtle background decoration */}
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white pointer-events-none"></div>
+          <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-100/30 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-100/30 rounded-full blur-3xl"></div>
+          
+          <div className="max-w-7xl mx-auto px-6 relative z-10">
+            {/* Section Header */}
+            <div className="text-center mb-16">
+              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+                How SolarMatch Works
+              </h2>
+              <p className="text-gray-600 max-w-2xl mx-auto text-lg">
+                Four powerful features to help you make the switch to solar energy
+              </p>
+            </div>
+
+            {/* Feature Cards Grid */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 justify-items-center">
+              <FeatureCard title="Satellite Analysis" color="bg-gradient-to-br from-blue-50 to-blue-100/50" icon={<MapPinIcon />}>
+                AI-powered rooftop identification using satellite imagery
+              </FeatureCard>
+              <FeatureCard title="Cost & Savings" color="bg-gradient-to-br from-amber-50 to-orange-100/50" icon={<SunIcon />}>
+                Instant estimates on installation costs and payback period
+              </FeatureCard>
+              <FeatureCard title="CO₂ Reduction" color="bg-gradient-to-br from-emerald-50 to-green-100/50" icon={<TrendingDownIcon />}>
+                See your environmental impact and carbon savings
+              </FeatureCard>
+              <FeatureCard title="Solar Co-ops" color="bg-gradient-to-br from-purple-50 to-purple-100/50" icon={<UsersIcon />}>
+                Join neighbours to share costs and go solar together
+              </FeatureCard>
+            </div>
+          </div>
+        </section>
+
+        {/* Optional: Add a stats or trust section */}
+        <section className="bg-gradient-to-b from-white to-gray-50 py-16">
+          <div className="max-w-7xl mx-auto px-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
+              <div className="p-6">
+                <div className="text-4xl font-bold text-orange-500 mb-2">100%</div>
+                <div className="text-gray-600 font-medium">Free Analysis</div>
+                <p className="text-sm text-gray-500 mt-2">No credit card required</p>
+              </div>
+              <div className="p-6">
+                <div className="text-4xl font-bold text-orange-500 mb-2">&lt;1min</div>
+                <div className="text-gray-600 font-medium">Instant Results</div>
+                <p className="text-sm text-gray-500 mt-2">Get your solar report immediately</p>
+              </div>
+              <div className="p-6">
+                <div className="text-4xl font-bold text-orange-500 mb-2">€1000s</div>
+                <div className="text-gray-600 font-medium">Potential Savings</div>
+                <p className="text-sm text-gray-500 mt-2">Save with solar co-ops</p>
+              </div>
+            </div>
           </div>
         </section>
       </main>
