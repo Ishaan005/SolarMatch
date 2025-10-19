@@ -3,8 +3,21 @@
 import { useState, useEffect, useRef } from "react"
 import { useRouter } from "next/navigation"
 import { motion } from "framer-motion"
+import dynamic from "next/dynamic"
 import Header from "../../components/Header"
-import GlobeComponent from "./GlobeComponent"
+
+// Dynamically import GlobeComponent with no SSR to avoid "window is not defined" error
+const GlobeComponent = dynamic(() => import("./GlobeComponent"), {
+  ssr: false,
+  loading: () => (
+    <div className="w-full h-full flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-2"></div>
+        <p className="text-sm text-gray-500">Loading globe...</p>
+      </div>
+    </div>
+  )
+})
 
 const MapPinIcon = () => (
   <svg width="48" height="48" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
