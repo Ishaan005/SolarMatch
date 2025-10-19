@@ -285,7 +285,7 @@ function ResultsContent() {
 
         {/* Title */}
         <h1 className="text-2xl font-semibold text-gray-900 mb-1">
-          Rooftop Analysis Results
+          Solar Analysis Results
         </h1>
         <p className="text-sm text-gray-600 mb-6">{results.address}</p>
 
@@ -368,7 +368,7 @@ function ResultsContent() {
                     ) : results.satelliteImage ? (
                       <img 
                         src={results.satelliteImage} 
-                        alt="Satellite view of rooftop" 
+                        alt="Satellite view of location" 
                         className="w-full h-full object-cover rounded-xl"
                       />
                     ) : (
