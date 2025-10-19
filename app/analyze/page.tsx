@@ -200,7 +200,7 @@ export default function AnalyzePage() {
                 Find Your Solar Potential
               </h1>
               <p className="text-lg text-gray-600 mb-8">
-                Enter your address to analyze your rooftop's solar energy potential using satellite imagery
+                Enter your address to analyze your location's solar energy potential using satellite imagery
               </p>
             </motion.div>
 
@@ -314,7 +314,7 @@ export default function AnalyzePage() {
                 ) : (
                   <>
                     <SearchIcon />
-                    <span>Analyze My Rooftop</span>
+                    <span>Analyze Solar Potential</span>
                   </>
                 )}
               </button>

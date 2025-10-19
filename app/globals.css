@@ -31,3 +31,8 @@ body {
 }
 
 .container-max { max-width: 1200px; margin-left: auto; margin-right: auto; }
+
+/* Protect images from dark mode inversion */
+.dark img {
+  filter: invert(1) hue-rotate(180deg);
+}
