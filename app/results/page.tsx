@@ -544,10 +544,10 @@ function ResultsContent() {
                         {/* Heatmap Legend */}
                         <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 text-xs">
                           <div className="flex items-center gap-2 mb-1">
-                            <div className="w-3 h-3 bg-gradient-to-r from-yellow-300 via-orange-500 to-red-600 rounded"></div>
+                            <div className="w-3 h-3 bg-gradient-to-r from-red-600 via-orange-500 to-yellow-300 rounded"></div>
                             <span className="font-semibold">Solar Irradiance</span>
                           </div>
-                          <p className="text-gray-600">Red = High | Yellow = Low</p>
+                          <p className="text-gray-600">Red = Low | Yellow = High</p>
                         </div>
                       </>
                     ) : (
