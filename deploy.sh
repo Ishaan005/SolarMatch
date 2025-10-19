@@ -87,20 +87,7 @@ BACKEND_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/solarmatch/${BACKEND_SERVI
 gcloud builds submit --tag $BACKEND_IMAGE
 cd ..
 
-# Build and push frontend
-echo -e "\n${YELLOW}Building and pushing frontend image...${NC}"
-FRONTEND_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/solarmatch/${FRONTEND_SERVICE}:latest"
-
-# Get the Google Maps API key from Secret Manager
-echo -e "${YELLOW}Retrieving Google Maps API key from Secret Manager...${NC}"
-GOOGLE_MAPS_API_KEY=$(gcloud secrets versions access latest --secret="google-maps-api-key" --project=$PROJECT_ID)
-
-# Build with the API key as a build arg using cloudbuild.yaml
-gcloud builds submit \
-    --config=cloudbuild.yaml \
-    --substitutions="_GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY},_BACKEND_URL=${BACKEND_URL},_IMAGE_NAME=${FRONTEND_IMAGE}"
-
-# Deploy backend to Cloud Run
+# Deploy backend to Cloud Run FIRST (so we know its URL)
 echo -e "\n${YELLOW}Deploying backend to Cloud Run...${NC}"
 gcloud run deploy $BACKEND_SERVICE \
     --image $BACKEND_IMAGE \
@@ -119,6 +106,19 @@ gcloud run deploy $BACKEND_SERVICE \
 # Get backend URL
 BACKEND_URL=$(gcloud run services describe $BACKEND_SERVICE --region $REGION --format 'value(status.url)')
 echo -e "${GREEN}✓ Backend deployed at: $BACKEND_URL${NC}"
+
+# NOW build and push frontend with the correct backend URL
+echo -e "\n${YELLOW}Building and pushing frontend image...${NC}"
+FRONTEND_IMAGE="${REGION}-docker.pkg.dev/${PROJECT_ID}/solarmatch/${FRONTEND_SERVICE}:latest"
+
+# Get the Google Maps API key from Secret Manager
+echo -e "${YELLOW}Retrieving Google Maps API key from Secret Manager...${NC}"
+GOOGLE_MAPS_API_KEY=$(gcloud secrets versions access latest --secret="google-maps-api-key" --project=$PROJECT_ID)
+
+# Build with the API key and backend URL as build args using cloudbuild.yaml
+gcloud builds submit \
+    --config=cloudbuild.yaml \
+    --substitutions="_GOOGLE_MAPS_API_KEY=${GOOGLE_MAPS_API_KEY},_BACKEND_URL=${BACKEND_URL},_IMAGE_NAME=${FRONTEND_IMAGE}"
 
 # Deploy frontend to Cloud Run
 echo -e "\n${YELLOW}Deploying frontend to Cloud Run...${NC}"
@@ -141,9 +141,11 @@ FRONTEND_URL=$(gcloud run services describe $FRONTEND_SERVICE --region $REGION -
 echo -e "${GREEN}✓ Frontend deployed at: $FRONTEND_URL${NC}"
 
 # Update backend CORS to allow frontend domain
-echo -e "\n${YELLOW}Updating CORS configuration...${NC}"
-echo -e "${YELLOW}You need to manually update backend/main.py to include:${NC}"
-echo -e "   allow_origins=[\"$FRONTEND_URL\", \"http://localhost:3000\"]"
+echo -e "\n${YELLOW}Updating backend CORS configuration...${NC}"
+gcloud run services update $BACKEND_SERVICE \
+    --region $REGION \
+    --update-env-vars "ALLOWED_ORIGINS=${FRONTEND_URL},http://localhost:3000"
+echo -e "${GREEN}✓ CORS updated to allow: $FRONTEND_URL${NC}"
 
 # Summary
 echo -e "\n${GREEN}Deployment Complete!${NC}"
