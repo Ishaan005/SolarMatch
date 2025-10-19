@@ -1,4 +1,5 @@
 import os
+from typing import List
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -18,6 +19,9 @@ class Settings:
     # SQL Echo (log queries in development)
     SQL_ECHO: bool = os.getenv("SQL_ECHO", "False").lower() == "true"
     
+    # CORS settings
+    ALLOWED_ORIGINS: str = os.getenv("ALLOWED_ORIGINS", "http://localhost:3000")
+    
     @property
     def is_api_key_configured(self) -> bool:
         return bool(self.GOOGLE_SOLAR_API_KEY and self.GOOGLE_SOLAR_API_KEY != "YOUR_API_KEY")
@@ -25,6 +29,12 @@ class Settings:
     @property
     def is_database_configured(self) -> bool:
         return bool(self.DATABASE_URL)
+    
+    @property
+    def cors_origins(self) -> List[str]:
+        """Parse CORS origins from environment variable"""
+        origins = [origin.strip() for origin in self.ALLOWED_ORIGINS.split(",")]
+        return [origin for origin in origins if origin]  # Filter out empty strings
 
 
 settings = Settings()

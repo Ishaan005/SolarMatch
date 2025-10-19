@@ -17,8 +17,14 @@ function ResultsContent() {
     solarSuitability: 0,
     suitabilityText: "Calculating...",
     installationCost: 0,
+    seaiGrant: 2400,
+    netCost: 0,
     paybackPeriod: 0,
     annualSavings: 0,
+    savingsBreakdown: {
+      selfConsumption: 0,
+      exportIncome: 0
+    },
     co2Reduction: 0,
     usableSpace: 0,
     capacity: 0,
@@ -112,14 +118,55 @@ function ResultsContent() {
           suitabilityText = "Fair solar potential"
         }
         
-        // Financial calculations
-        const usableSpace = data.estimated_roof_area_sq_meters || 0
-        const capacity = data.estimated_capacity_kwp || parseFloat((usableSpace / 8).toFixed(2)) // Use provided or calculate
-        const installationCost = Math.round(capacity * 1200) // €1200 per kW typical cost
+        // Get areas from backend (prefer usable area if available)
+        const totalRoofArea = data.estimated_roof_area_sq_meters || 0
+        const usableSpace = data.usable_roof_area_sq_meters || totalRoofArea
+        
+        // Get capacity from backend (it's already calculated properly there)
+        const capacity = data.estimated_capacity_kwp || 0
+        
+        // Financial calculations - Updated for 2024 Irish market
+        // Typical residential solar costs in Ireland (2024):
+        // - Small systems (<4 kWp): €1,400-€1,600 per kWp
+        // - Medium systems (4-8 kWp): €1,200-€1,400 per kWp  
+        // - Larger systems (>8 kWp): €1,000-€1,200 per kWp
+        // Using sliding scale based on system size
+        let costPerKwp = 1400 // Default for small systems
+        if (capacity > 8) {
+          costPerKwp = 1100 // Larger systems benefit from economies of scale
+        } else if (capacity > 4) {
+          costPerKwp = 1300 // Medium systems
+        }
+        
+        const installationCost = Math.round(capacity * costPerKwp)
+        
+        // SEAI Solar PV Grant (2024) - €2,400 for residential systems
+        const seaiGrant = 2400
+        const netInstallationCost = Math.max(0, installationCost - seaiGrant)
+        
+        // Get annual energy from backend
         const annualEnergy = data.estimated_annual_energy_kwh || 0
-        const annualSavings = Math.round(annualEnergy * 0.30) // €0.30 per kWh electricity cost
-        const paybackPeriod = annualSavings > 0 ? parseFloat((installationCost / annualSavings).toFixed(1)) : 0
-        const co2Reduction = Math.round(annualEnergy * 0.4) // 0.4 kg CO2 per kWh
+        
+        // Self-consumption model (more accurate than simple multiplication)
+        // Without battery: typical home uses 30-40% of solar directly
+        // Remaining is exported to grid at lower rate
+        const selfConsumptionRate = 0.35  // 35% used directly (conservative)
+        const importElectricityRate = 0.38  // €/kWh - cost of grid electricity
+        const exportElectricityRate = 0.185  // €/kWh - Clean Export Guarantee rate (2024)
+        
+        const selfConsumedEnergy = annualEnergy * selfConsumptionRate
+        const exportedEnergy = annualEnergy * (1 - selfConsumptionRate)
+        
+        // Calculate realistic annual savings
+        const savingsFromSelfConsumption = Math.round(selfConsumedEnergy * importElectricityRate)
+        const incomeFromExport = Math.round(exportedEnergy * exportElectricityRate)
+        const annualSavings = savingsFromSelfConsumption + incomeFromExport
+        
+        // Payback period using net cost (after grant)
+        const paybackPeriod = annualSavings > 0 ? parseFloat((netInstallationCost / annualSavings).toFixed(1)) : 0
+        
+        // CO2 reduction - Ireland grid average: 0.35 kg CO2 per kWh (2024)
+        const co2Reduction = Math.round(annualEnergy * 0.35)
         
         setResults(prev => ({
           ...prev,
@@ -128,7 +175,13 @@ function ResultsContent() {
           usableSpace,
           capacity,
           installationCost,
+          seaiGrant,
+          netCost: netInstallationCost,
           annualSavings,
+          savingsBreakdown: {
+            selfConsumption: savingsFromSelfConsumption,
+            exportIncome: incomeFromExport
+          },
           paybackPeriod,
           co2Reduction,
           dataSource,
@@ -399,7 +452,7 @@ function ResultsContent() {
                   </svg>
                   <p className="text-sm font-semibold mb-2">No Satellite Imagery Available</p>
                   <p className="text-xs text-gray-600 max-w-xs mx-auto">
-                    This rural location isn't covered by high-resolution imagery yet. 
+                    This rural location isn&apos;t covered by high-resolution imagery yet. 
                     Solar analysis is based on regional solar radiation data.
                   </p>
                   <div className="mt-4 p-3 bg-white/60 rounded-lg text-xs">
@@ -497,7 +550,7 @@ function ResultsContent() {
             {/* Info Text Below Image */}
             {viewMode === 'satellite' ? (
               <p className="text-xs text-gray-600">
-                <span className="font-semibold">{results.usableSpace}m²</span> usable space • <span className="font-semibold">{results.capacity} kW</span> capacity
+                <span className="font-semibold">{results.usableSpace.toFixed(0)}m²</span> usable roof area • <span className="font-semibold">{results.capacity} kWp</span> capacity
               </p>
             ) : (
               <p className="text-xs text-gray-600">
@@ -590,13 +643,14 @@ function ResultsContent() {
                       <svg className="w-7 h-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                       </svg>
-                      <span className="text-lg text-gray-600">Installation Cost</span>
+                      <span className="text-lg text-gray-600">Net Cost</span>
                     </div>
                     <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
                   </div>
-                  <p className="text-2xl font-bold text-gray-900">€{results.installationCost.toLocaleString()}</p>
+                  <p className="text-2xl font-bold text-gray-900">€{results.netCost.toLocaleString()}</p>
+                  <p className="text-xs text-blue-600 mt-1">After SEAI Grant</p>
                   
                   {/* Hover Tooltip */}
                   <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border-2 border-blue-200 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
@@ -609,18 +663,26 @@ function ResultsContent() {
                       </div>
                       <div className="flex justify-between text-gray-700">
                         <span>System capacity:</span>
-                        <span className="font-mono font-semibold">{results.capacity} kW</span>
+                        <span className="font-mono font-semibold">{results.capacity} kWp</span>
                       </div>
                       <div className="flex justify-between text-gray-700">
-                        <span>Cost per kW:</span>
-                        <span className="font-mono font-semibold">€1,200</span>
+                        <span>Cost per kWp:</span>
+                        <span className="font-mono font-semibold">€{Math.round(results.installationCost / results.capacity).toLocaleString()}</span>
+                      </div>
+                      <div className="border-t border-blue-200 pt-2 mt-2 flex justify-between text-gray-700">
+                        <span>Gross cost:</span>
+                        <span className="font-mono">€{results.installationCost.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-green-700 font-semibold">
+                        <span>SEAI Grant:</span>
+                        <span className="font-mono">-€{results.seaiGrant.toLocaleString()}</span>
                       </div>
                       <div className="border-t border-blue-200 pt-2 mt-2 flex justify-between font-semibold text-blue-900">
-                        <span>Total:</span>
-                        <span className="font-mono text-sm">{results.capacity} × €1,200</span>
+                        <span>Net cost:</span>
+                        <span className="font-mono">€{results.netCost.toLocaleString()}</span>
                       </div>
                       <p className="text-xs text-blue-600 mt-3 pt-2 border-t border-blue-100">
-                        Based on average Irish solar installation costs in 2024
+                        Based on 2024 Irish solar costs. Grant available for residential systems.
                       </p>
                     </div>
                   </div>
@@ -651,8 +713,8 @@ function ResultsContent() {
                         How We Calculated This
                       </div>
                       <div className="flex justify-between text-gray-700">
-                        <span>Total investment:</span>
-                        <span className="font-mono font-semibold">€{results.installationCost.toLocaleString()}</span>
+                        <span>Net investment:</span>
+                        <span className="font-mono font-semibold">€{results.netCost.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-gray-700">
                         <span>Annual savings:</span>
@@ -660,10 +722,10 @@ function ResultsContent() {
                       </div>
                       <div className="border-t border-purple-200 pt-2 mt-2 flex justify-between font-semibold text-purple-900">
                         <span>Payback:</span>
-                        <span className="font-mono text-sm">€{results.installationCost.toLocaleString()} ÷ €{results.annualSavings.toLocaleString()}</span>
+                        <span className="font-mono text-sm">€{results.netCost.toLocaleString()} ÷ €{results.annualSavings.toLocaleString()}</span>
                       </div>
                       <p className="text-xs text-purple-600 mt-3 pt-2 border-t border-purple-100">
-                        After this period, you'll have free electricity for 25+ years
+                        After this period, you&apos;ll benefit from free electricity for 25+ years. Net cost includes SEAI grant.
                       </p>
                     </div>
                   </div>
@@ -694,19 +756,19 @@ function ResultsContent() {
                         How We Calculated This
                       </div>
                       <div className="flex justify-between text-gray-700">
-                        <span>Annual energy:</span>
-                        <span className="font-mono font-semibold">{(results.annualSavings / 0.30).toFixed(0)} kWh</span>
+                        <span>Self-consumed:</span>
+                        <span className="font-mono font-semibold">€{results.savingsBreakdown.selfConsumption.toLocaleString()}</span>
                       </div>
                       <div className="flex justify-between text-gray-700">
-                        <span>Electricity rate:</span>
-                        <span className="font-mono font-semibold">€0.30/kWh</span>
+                        <span>Export income:</span>
+                        <span className="font-mono font-semibold">€{results.savingsBreakdown.exportIncome.toLocaleString()}</span>
                       </div>
                       <div className="border-t border-green-200 pt-2 mt-2 flex justify-between font-semibold text-green-900">
-                        <span>Total:</span>
-                        <span className="font-mono text-sm">{(results.annualSavings / 0.30).toFixed(0)} × €0.30</span>
+                        <span>Total annual value:</span>
+                        <span className="font-mono text-sm">€{results.annualSavings.toLocaleString()}</span>
                       </div>
                       <p className="text-xs text-green-600 mt-3 pt-2 border-t border-green-100">
-                        Based on average Irish household electricity prices
+                        Self-consumption @€0.38/kWh, export @€0.185/kWh (Clean Export Guarantee). Add battery to increase self-consumption to 70%+.
                       </p>
                     </div>
                   </div>
@@ -738,15 +800,15 @@ function ResultsContent() {
                       </div>
                       <div className="flex justify-between text-gray-700">
                         <span>Annual energy:</span>
-                        <span className="font-mono font-semibold">{(results.co2Reduction / 0.4).toFixed(0)} kWh</span>
+                        <span className="font-mono font-semibold">{Math.round(results.co2Reduction / 0.35).toLocaleString()} kWh</span>
                       </div>
                       <div className="flex justify-between text-gray-700">
                         <span>CO₂ intensity:</span>
-                        <span className="font-mono font-semibold">0.4 kg/kWh</span>
+                        <span className="font-mono font-semibold">0.35 kg/kWh</span>
                       </div>
                       <div className="border-t border-teal-200 pt-2 mt-2 flex justify-between font-semibold text-teal-900">
                         <span>CO₂ saved:</span>
-                        <span className="font-mono text-sm">{(results.co2Reduction / 0.4).toFixed(0)} × 0.4</span>
+                        <span className="font-mono text-sm">{Math.round(results.co2Reduction / 0.35).toLocaleString()} kWh × 0.35</span>
                       </div>
                       <p className="text-xs text-teal-600 mt-3 pt-2 border-t border-teal-100">
                         Equivalent to planting {Math.round(results.co2Reduction / 20)} trees per year

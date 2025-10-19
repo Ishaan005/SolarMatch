@@ -282,7 +282,7 @@ function CreateCoopContent() {
                       What happens next?
                     </p>
                     <p className="text-sm text-amber-800">
-                      We'll create your community coordination page. You can then share the link with 
+                      We&apos;ll create your community coordination page. You can then share the link with 
                       neighbours to start gathering interest and coordinate bulk solar installation for better pricing.
                     </p>
                   </div>

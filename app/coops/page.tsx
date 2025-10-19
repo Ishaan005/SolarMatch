@@ -209,7 +209,7 @@ function CoopsContent() {
             Start Your Own Co-op
           </h2>
           <p className="text-gray-600 mb-6 max-w-2xl mx-auto">
-            Don't see a co-op that fits? Create one and invite your neighbours to join you.
+            Don&apos;t see a co-op that fits? Create one and invite your neighbours to join you.
           </p>
           <button 
             onClick={() => router.push(`/coops/create?lat=${lat}&lng=${lng}&address=${address}`)}

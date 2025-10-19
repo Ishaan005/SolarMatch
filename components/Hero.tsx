@@ -20,7 +20,7 @@ export default function Hero(){
 
         {/* Main Heading - More compact */}
         <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold mb-4 text-gray-900 leading-tight max-w-3xl mx-auto">
-          Find Your Rooftop's Solar Potential
+          Find Your Rooftop&apos;s Solar Potential
         </h1>
 
         {/* Description - More compact */}

@@ -55,7 +55,7 @@ export default function PlatformPage() {
               </div>
               <h3 className="text-xl font-semibold text-gray-800 mb-2">Solar Analysis</h3>
               <p className="text-gray-600">
-                Advanced tools to analyze your roof's solar potential and energy production.
+                Advanced tools to analyze your roof&apos;s solar potential and energy production.
               </p>
             </div>
 

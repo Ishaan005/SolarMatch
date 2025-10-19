@@ -103,25 +103,34 @@ class UnifiedSolarService:
             
             # Estimate roof area if not provided
             # For rural Ireland, typical single-family homes: 80-150 m²
-            # Use conservative estimate
+            # Use conservative estimate for total roof area
             if estimated_roof_area is None:
                 estimated_roof_area = 100.0  # Default assumption for rural home
             
+            # Apply usability factor for roof area
+            # Not all roof area is suitable for panels:
+            # - North-facing slopes: reduced efficiency
+            # - Shading: trees, terrain
+            # - Obstructions: chimneys, vents
+            # - Edge setbacks: safety margins
+            # Conservative estimate: 50-60% of total roof is usable
+            usable_roof_area = estimated_roof_area * 0.55
+            
             # Calculate energy production
-            # PVGIS gives us kWh/kWp/year already
+            # PVGIS gives us kWh/kWp/year already (similar to Google Solar API flux)
             annual_energy_per_kwp = pvgis_data.get('annual_pv_energy_per_kwp', 0)
             
-            # Panel efficiency assumptions
-            panel_efficiency = 0.20  # 20% efficient panels
-            performance_ratio = 0.75  # 75% performance ratio (losses)
+            # Panel and system parameters (must match resultMath.py)
+            performance_ratio = 0.82  # 82% performance ratio (realistic for modern systems)
+            area_per_kwp = 5.5  # Modern 400W+ panels: ~5.5 m² per kWp installed
             
-            # Calculate how many kWp can fit on the roof
-            # 1 kWp ≈ 5-8 m² (we use 6.5 m² as average)
-            area_per_kwp = 6.5
-            max_capacity_kwp = estimated_roof_area / area_per_kwp
+            # Calculate how many kWp can fit on the usable roof area
+            max_capacity_kwp = usable_roof_area / area_per_kwp
             
             # Annual energy production
-            annual_energy_kwh = annual_energy_per_kwp * max_capacity_kwp
+            # PVGIS annual_pv_energy_per_kwp already includes panel efficiency
+            # Only apply performance ratio for system losses
+            annual_energy_kwh = annual_energy_per_kwp * max_capacity_kwp * performance_ratio
             
             # Build response in same format as Google Solar API
             return {
@@ -133,6 +142,7 @@ class UnifiedSolarService:
                 "flux_stats": pvgis_data.get('flux_stats', {}),
                 
                 "estimated_roof_area_sq_meters": estimated_roof_area,
+                "usable_roof_area_sq_meters": round(usable_roof_area, 2),
                 "estimated_capacity_kwp": round(max_capacity_kwp, 2),
                 "estimated_annual_energy_kwh": round(annual_energy_kwh, 2),
                 
@@ -149,6 +159,14 @@ class UnifiedSolarService:
                 },
                 
                 "imagery_urls": None,  # No imagery available
+                
+                "calculation_notes": {
+                    "total_roof_area_m2": estimated_roof_area,
+                    "usability_factor": "55% (accounts for orientation, shading, obstructions)",
+                    "usable_area_m2": round(usable_roof_area, 2),
+                    "area_per_kwp": area_per_kwp,
+                    "note": "Estimates assume typical Irish residential roof. Site survey recommended for accuracy."
+                },
                 
                 "recommendations": [
                     "Consider manual roof measurement for accurate area calculation",

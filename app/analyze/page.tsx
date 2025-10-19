@@ -213,7 +213,7 @@ export default function AnalyzePage() {
                 Find Your Solar Potential
               </h1>
               <p className="text-lg text-gray-600 mb-8">
-                Enter your address to analyze your location's solar energy potential using satellite imagery
+                Enter your address to analyze your location&apos;s solar energy potential using satellite imagery
               </p>
             </motion.div>
 

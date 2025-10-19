@@ -38,6 +38,8 @@ class SolarAnalysis:
             flux_stats = self.processor.get_statistics(flux_array)
 
             roof_area_sq_meters = 0
+            usable_roof_area = 0
+            
             if self.data_layers.get('maskUrl'):
                 mask_data = await self.processor.download_geotiff(self.data_layers['maskUrl'])
                 mask_array, mask_metadata = self.processor.geotiff_to_array(mask_data)
@@ -47,23 +49,67 @@ class SolarAnalysis:
                 
                 roof_pixels = np.count_nonzero(mask_array)
                 roof_area_sq_meters = roof_pixels * pixel_area
+                
+                # Calculate usable area based on solar flux quality
+                # Only count areas with good solar potential (>50% of mean flux)
+                # This threshold allows east/west-facing roofs which are still viable in Ireland
+                flux_threshold = flux_stats.get('mean', 0) * 0.50
+                
+                # Mask areas with good flux
+                good_flux_mask = flux_array > flux_threshold
+                combined_mask = mask_array & good_flux_mask
+                usable_pixels = np.count_nonzero(combined_mask)
+                usable_roof_area = usable_pixels * pixel_area
+                
+                # Apply practical reduction factors:
+                # - Setbacks from edges: 10%
+                # - Obstructions (vents, chimneys): 12% (typical residential)
+                # - Access and safety margins: 5%
+                # Total practical usable: ~73% of theoretically usable area
+                usable_roof_area = usable_roof_area * 0.73
 
-            panel_efficiency = 0.20
-            performance_ratio = 0.75
+            # Panel and system parameters
+            panel_efficiency = 0.20  # 20% efficient modern panels (only used if calculating from raw irradiance)
+            performance_ratio = 0.82  # 82% system performance (realistic for modern Irish systems)
+            area_per_kwp = 5.5  # Modern 400W+ panels: ~5.5 m² per kWp installed
             
             mean_flux = flux_stats.get('mean', 0) or 0
             
-            annual_energy_kwh = mean_flux * roof_area_sq_meters * panel_efficiency * performance_ratio
+            # Calculate system capacity based on usable area
+            estimated_capacity_kwp = usable_roof_area / area_per_kwp if usable_roof_area > 0 else 0
+            
+            # Calculate annual energy production
+            # IMPORTANT: mean_flux from Google Solar API is already in kWh/kWp/year
+            # It already accounts for panel efficiency and solar irradiance
+            # We only need to apply the performance ratio (system losses: inverter, temp, wiring)
+            annual_energy_kwh = estimated_capacity_kwp * mean_flux * performance_ratio
+            
+            # Note: The previous calculation was double-counting efficiency:
+            # OLD (WRONG): mean_flux * area * panel_efficiency * performance_ratio
+            # This applied efficiency twice since flux is already per kWp
+            # NEW (CORRECT): capacity * mean_flux * performance_ratio
 
             return {
                 "flux_stats": flux_stats,
                 "estimated_roof_area_sq_meters": round(roof_area_sq_meters, 2),
+                "usable_roof_area_sq_meters": round(usable_roof_area, 2),
+                "estimated_capacity_kwp": round(estimated_capacity_kwp, 2),
                 "estimated_annual_energy_kwh": round(annual_energy_kwh, 2),
                 "imagery_urls": {
                     "rgb": self.data_layers.get('rgbUrl'),
                     "dsm": self.data_layers.get('dsmUrl'),
                     "mask": self.data_layers.get('maskUrl'),
                     "annual_flux": self.data_layers.get('annualFluxUrl'),
+                },
+                "calculation_notes": {
+                    "total_roof_area_m2": round(roof_area_sq_meters, 2),
+                    "usable_area_after_flux_filtering_m2": round(usable_roof_area / 0.73, 2) if usable_roof_area > 0 else 0,
+                    "practical_usable_area_m2": round(usable_roof_area, 2),
+                    "flux_threshold": "50% of mean (allows viable east/west orientations)",
+                    "reduction_factors": "Accounts for edge setbacks (10%), obstructions (12%), safety margins (5%)",
+                    "area_per_kwp": area_per_kwp,
+                    "performance_ratio": performance_ratio,
+                    "note": "Performance ratio 0.82 is realistic for modern Irish systems (2024 standard)"
                 }
             }
         except Exception as e:

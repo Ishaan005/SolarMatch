@@ -44,7 +44,7 @@ export async function GET(request: NextRequest) {
     
     // Transform the new API response to match the old format
     if (data.suggestions && data.suggestions.length > 0) {
-      const predictions = data.suggestions.map((suggestion: any) => ({
+      const predictions = data.suggestions.map((suggestion: { placePrediction?: { placeId?: string; text?: { text?: string; matches?: unknown[] }; structuredFormat?: { mainText?: { text?: string }; secondaryText?: { text?: string } } } }) => ({
         place_id: suggestion.placePrediction?.placeId || '',
         description: suggestion.placePrediction?.text?.text || '',
         structured_formatting: {

@@ -27,10 +27,11 @@ app = FastAPI(title="SolarMatch API")
 # Initialize chatbot service
 chatbot_service = None
 
-# cors to allow requests from NextJS frontend
+# CORS to allow requests from NextJS frontend
+# In production, this will be set via ALLOWED_ORIGINS environment variable
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000"],  # Next.js default port
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
