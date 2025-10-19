@@ -21,13 +21,20 @@ function ResultsContent() {
     co2Reduction: 0,
     usableSpace: 0,
     capacity: 0,
-    satelliteImage: "" // Will be loaded from backend
+    satelliteImage: "", // Will be loaded from backend
+    heatmapImage: "", // Solar flux heatmap
+    dataSource: "", // "Google Solar API" or "PVGIS"
+    hasImagery: true, // Whether high-res imagery is available
+    note: "" // Additional info for rural areas
   })
 
   const [isLoadingImage, setIsLoadingImage] = useState(true)
   const [imageError, setImageError] = useState(false)
   const [isLoadingAnalysis, setIsLoadingAnalysis] = useState(true)
   const [analysisError, setAnalysisError] = useState<string | null>(null)
+  const [viewMode, setViewMode] = useState<'satellite' | 'heatmap'>('satellite')
+  const [isLoadingHeatmap, setIsLoadingHeatmap] = useState(true)
+  const [heatmapError, setHeatmapError] = useState(false)
 
   // Fetch solar analysis data from backend
   useEffect(() => {
@@ -56,6 +63,11 @@ function ResultsContent() {
 
         const data = await response.json()
         
+        // Store data source information
+        const dataSource = data.data_source || "Google Solar API"
+        const hasImagery = data.has_imagery !== false
+        const note = data.note || ""
+        
         // Calculate solar suitability based on mean flux
         // Good solar potential: 1200-1500+ kWh/kW/year
         const meanFlux = data.flux_stats?.mean || 0
@@ -72,7 +84,7 @@ function ResultsContent() {
         
         // Financial calculations
         const usableSpace = data.estimated_roof_area_sq_meters || 0
-        const capacity = parseFloat((usableSpace / 8).toFixed(2)) // ~8 sqm per kW
+        const capacity = data.estimated_capacity_kwp || parseFloat((usableSpace / 8).toFixed(2)) // Use provided or calculate
         const installationCost = Math.round(capacity * 1200) // €1200 per kW typical cost
         const annualEnergy = data.estimated_annual_energy_kwh || 0
         const annualSavings = Math.round(annualEnergy * 0.30) // €0.30 per kWh electricity cost
@@ -88,7 +100,10 @@ function ResultsContent() {
           installationCost,
           annualSavings,
           paybackPeriod,
-          co2Reduction
+          co2Reduction,
+          dataSource,
+          hasImagery,
+          note
         }))
         
         setIsLoadingAnalysis(false)
@@ -128,12 +143,22 @@ function ResultsContent() {
         const blob = await response.blob()
         const imageUrl = URL.createObjectURL(blob)
         
-        setResults(prev => ({
-          ...prev,
-          satelliteImage: imageUrl
-        }))
+        // Preload the image to ensure it's ready before displaying
+        const img = new Image()
+        img.onload = () => {
+          setResults(prev => ({
+            ...prev,
+            satelliteImage: imageUrl
+          }))
+          setIsLoadingImage(false)
+        }
+        img.onerror = () => {
+          URL.revokeObjectURL(imageUrl)
+          setImageError(true)
+          setIsLoadingImage(false)
+        }
+        img.src = imageUrl
         
-        setIsLoadingImage(false)
       } catch (error) {
         console.error('Error fetching satellite image:', error)
         setImageError(true)
@@ -144,14 +169,68 @@ function ResultsContent() {
     fetchSatelliteImage()
   }, [lat, lng])
 
-  // Cleanup object URL when component unmounts
+  // Fetch solar flux heatmap from backend
+  useEffect(() => {
+    const fetchHeatmap = async () => {
+      if (!lat || !lng) {
+        setIsLoadingHeatmap(false)
+        setHeatmapError(true)
+        return
+      }
+
+      try {
+        setIsLoadingHeatmap(true)
+        setHeatmapError(false)
+        
+        const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+        const url = `${backendUrl}/api/solar/annual-flux-heatmap?latitude=${lat}&longitude=${lng}&radius_meters=50&colormap=hot&max_width=800&max_height=800`
+        
+        const response = await fetch(url)
+
+        if (!response.ok) {
+          throw new Error(`Failed to fetch heatmap: ${response.status}`)
+        }
+
+        const blob = await response.blob()
+        const imageUrl = URL.createObjectURL(blob)
+        
+        // Preload the image to ensure it's ready before displaying
+        const img = new Image()
+        img.onload = () => {
+          setResults(prev => ({
+            ...prev,
+            heatmapImage: imageUrl
+          }))
+          setIsLoadingHeatmap(false)
+        }
+        img.onerror = () => {
+          URL.revokeObjectURL(imageUrl)
+          setHeatmapError(true)
+          setIsLoadingHeatmap(false)
+        }
+        img.src = imageUrl
+        
+      } catch (error) {
+        console.error('Error fetching heatmap:', error)
+        setHeatmapError(true)
+        setIsLoadingHeatmap(false)
+      }
+    }
+    
+    fetchHeatmap()
+  }, [lat, lng])
+
+  // Cleanup object URLs when component unmounts
   useEffect(() => {
     return () => {
       if (results.satelliteImage && results.satelliteImage.startsWith('blob:')) {
         URL.revokeObjectURL(results.satelliteImage)
       }
+      if (results.heatmapImage && results.heatmapImage.startsWith('blob:')) {
+        URL.revokeObjectURL(results.heatmapImage)
+      }
     }
-  }, [results.satelliteImage])
+  }, [results.satelliteImage, results.heatmapImage])
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-white via-blue-50/30 to-green-50/40">
@@ -159,7 +238,7 @@ function ResultsContent() {
 
       <main className="max-w-6xl mx-auto px-6 py-8">
         {/* Status Badge */}
-        <div className="mb-3">
+        <div className="mb-3 flex items-center gap-2">
           {isLoadingAnalysis ? (
             <span className="inline-block px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
               <svg className="inline w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
@@ -173,11 +252,36 @@ function ResultsContent() {
               Analysis Failed
             </span>
           ) : (
-            <span className="inline-block px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-              Analysis Complete
-            </span>
+            <>
+              <span className="inline-block px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                Analysis Complete
+              </span>
+              {results.dataSource && (
+                <span className="inline-block px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                  {results.dataSource === "PVGIS" ? "Modeled Data" : "High-Res Imagery"}
+                </span>
+              )}
+            </>
           )}
         </div>
+
+        {/* Info Banner for Rural Areas */}
+        {!isLoadingAnalysis && results.dataSource === "PVGIS" && results.note && (
+          <div className="mb-4 bg-amber-50 border border-amber-200 rounded-xl p-4">
+            <div className="flex items-start gap-3">
+              <svg className="w-5 h-5 text-amber-600 flex-shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div>
+                <h3 className="text-sm font-semibold text-amber-900 mb-1">Rural Area Analysis</h3>
+                <p className="text-xs text-amber-800">{results.note}</p>
+                <p className="text-xs text-amber-700 mt-2">
+                  <strong>Tip:</strong> For the most accurate results, consider a professional site survey to measure your actual roof area.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Title */}
         <h1 className="text-2xl font-semibold text-gray-900 mb-1">
@@ -187,50 +291,147 @@ function ResultsContent() {
 
         {/* Main Grid */}
         <div className="grid lg:grid-cols-2 gap-5">
-          {/* Left Column - Satellite View */}
+          {/* Left Column - Imagery View */}
           <div className="bg-white rounded-2xl shadow-sm p-5 border border-gray-200">
-            <h2 className="text-base font-semibold text-gray-900 mb-3">
-              Satellite View
-            </h2>
-            
-            {/* Satellite Image */}
-            <div className="w-full aspect-square bg-gradient-to-br from-blue-200 to-green-200 rounded-xl mb-3 flex items-center justify-center overflow-hidden">
-              {isLoadingImage ? (
-                <div className="text-center text-gray-600">
-                  <svg className="w-12 h-12 mx-auto mb-2 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
-                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                  </svg>
-                  <p className="text-xs">Loading satellite imagery...</p>
+            <div className="flex items-center justify-between mb-3">
+              <h2 className="text-base font-semibold text-gray-900">
+                {viewMode === 'satellite' ? 'Satellite View' : 'Solar Flux Heatmap'}
+              </h2>
+              
+              {/* Toggle Buttons - Only show if imagery is available */}
+              {results.hasImagery && (
+                <div className="flex gap-2 bg-gray-100 rounded-lg p-1">
+                  <button
+                    onClick={() => setViewMode('satellite')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                      viewMode === 'satellite'
+                        ? 'bg-white text-blue-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Satellite
+                  </button>
+                  <button
+                    onClick={() => setViewMode('heatmap')}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-md transition-all ${
+                      viewMode === 'heatmap'
+                        ? 'bg-white text-orange-600 shadow-sm'
+                        : 'text-gray-600 hover:text-gray-900'
+                    }`}
+                  >
+                    Heat Map
+                  </button>
                 </div>
-              ) : imageError ? (
-                <div className="text-center text-gray-600">
-                  <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              )}
+            </div>            {/* Image Display */}
+            <div className="w-full aspect-square bg-gradient-to-br from-blue-200 to-green-200 rounded-xl mb-3 flex items-center justify-center overflow-hidden relative">
+              {!results.hasImagery ? (
+                // No imagery available (rural area)
+                <div className="text-center text-gray-700 p-8">
+                  <svg className="w-16 h-16 mx-auto mb-3 text-amber-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 20l-5.447-2.724A1 1 0 013 16.382V5.618a1 1 0 011.447-.894L9 7m0 13l6-3m-6 3V7m6 10l4.553 2.276A1 1 0 0021 18.382V7.618a1 1 0 00-.553-.894L15 4m0 13V4m0 0L9 7" />
                   </svg>
-                  <p className="text-xs">Could not load satellite imagery</p>
-                  <p className="text-xs text-gray-500 mt-1">Make sure the backend is running</p>
+                  <p className="text-sm font-semibold mb-2">No Satellite Imagery Available</p>
+                  <p className="text-xs text-gray-600 max-w-xs mx-auto">
+                    This rural location isn't covered by high-resolution imagery yet. 
+                    Solar analysis is based on regional solar radiation data.
+                  </p>
+                  <div className="mt-4 p-3 bg-white/60 rounded-lg text-xs">
+                    <p className="font-semibold text-gray-800 mb-1">What this means:</p>
+                    <ul className="text-left text-gray-700 space-y-1">
+                      <li>• Solar potential estimates are reliable</li>
+                      <li>• Based on satellite weather data</li>
+                      <li>• Consider a site survey for details</li>
+                    </ul>
+                  </div>
                 </div>
-              ) : results.satelliteImage ? (
-                <img 
-                  src={results.satelliteImage} 
-                  alt="Satellite view of rooftop" 
-                  className="w-full h-full object-cover rounded-xl"
-                />
+              ) : viewMode === 'satellite' ? (
+                // Satellite Image
+                isLoadingImage ? (
+                  <div className="text-center text-gray-600">
+                    <svg className="w-12 h-12 mx-auto mb-2 text-gray-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p className="text-xs">Loading satellite imagery...</p>
+                  </div>
+                ) : imageError ? (
+                  <div className="text-center text-gray-600">
+                    <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <p className="text-xs">Could not load satellite imagery</p>
+                    <p className="text-xs text-gray-500 mt-1">Make sure the backend is running</p>
+                  </div>
+                ) : results.satelliteImage ? (
+                  <img 
+                    src={results.satelliteImage} 
+                    alt="Satellite view of rooftop" 
+                    className="w-full h-full object-cover rounded-xl"
+                  />
+                ) : (
+                  <div className="text-center text-gray-600">
+                    <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-xs">No coordinates provided</p>
+                  </div>
+                )
               ) : (
-                <div className="text-center text-gray-600">
-                  <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                  </svg>
-                  <p className="text-xs">No coordinates provided</p>
-                </div>
+                // Heatmap Image
+                isLoadingHeatmap ? (
+                  <div className="text-center text-gray-600">
+                    <svg className="w-12 h-12 mx-auto mb-2 text-orange-400 animate-spin" fill="none" viewBox="0 0 24 24">
+                      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                      <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                    </svg>
+                    <p className="text-xs">Generating solar flux heatmap...</p>
+                  </div>
+                ) : heatmapError ? (
+                  <div className="text-center text-gray-600">
+                    <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    <p className="text-xs">Could not load solar flux data</p>
+                    <p className="text-xs text-gray-500 mt-1">Not available for this location</p>
+                  </div>
+                ) : results.heatmapImage ? (
+                  <>
+                    <img 
+                      src={results.heatmapImage} 
+                      alt="Solar flux heatmap" 
+                      className="w-full h-full object-contain rounded-xl"
+                    />
+                    {/* Heatmap Legend */}
+                    <div className="absolute bottom-2 right-2 bg-white/90 backdrop-blur-sm rounded-lg px-3 py-2 text-xs">
+                      <div className="flex items-center gap-2 mb-1">
+                        <div className="w-3 h-3 bg-gradient-to-r from-yellow-300 via-orange-500 to-red-600 rounded"></div>
+                        <span className="font-semibold">Solar Irradiance</span>
+                      </div>
+                      <p className="text-gray-600">Red = High | Yellow = Low</p>
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-center text-gray-600">
+                    <svg className="w-12 h-12 mx-auto mb-2 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                    </svg>
+                    <p className="text-xs">No heatmap data</p>
+                  </div>
+                )
               )}
             </div>
 
-            {/* Capacity Info */}
-            <p className="text-xs text-gray-600">
-              <span className="font-semibold">{results.usableSpace}m²</span> usable space • <span className="font-semibold">{results.capacity} kW</span> capacity
-            </p>
+            {/* Info Text Below Image */}
+            {viewMode === 'satellite' ? (
+              <p className="text-xs text-gray-600">
+                <span className="font-semibold">{results.usableSpace}m²</span> usable space • <span className="font-semibold">{results.capacity} kW</span> capacity
+              </p>
+            ) : (
+              <p className="text-xs text-gray-600">
+                <span className="font-semibold">Warmer colors</span> indicate areas with higher solar potential • Best for panel placement
+              </p>
+            )}
           </div>
 
           {/* Right Column - Details */}

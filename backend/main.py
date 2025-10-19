@@ -6,6 +6,7 @@ from core.solar_api import solar_client
 from core.config import settings
 from core.geotiff_processor import geotiff_processor
 from core.resultMath import SolarAnalysis
+from core.unified_solar_service import unified_solar_service
 
 app = FastAPI(title="SolarMatch API")
 
@@ -363,42 +364,57 @@ async def get_cache_info():
     }
 
 
+@app.get("/api/solar/coverage")
+async def check_solar_coverage(
+    latitude: float = Query(..., description="Latitude of the location"),
+    longitude: float = Query(..., description="Longitude of the location")
+):
+    """
+    Check what solar data sources are available for a location.
+    
+    Useful for determining if high-resolution imagery is available
+    or if modeled data (PVGIS) will be used.
+    """
+    try:
+        coverage = await unified_solar_service.check_coverage(
+            latitude=latitude,
+            longitude=longitude
+        )
+        return coverage
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error checking coverage: {str(e)}")
+
+
 @app.get("/api/solar/analysis")
 async def get_solar_analysis(
     latitude: float = Query(..., description="Latitude of the location"),
     longitude: float = Query(..., description="Longitude of the location"),
-    radius_meters: float = Query(50.0, description="Radius in meters", ge=0)
+    radius_meters: float = Query(50.0, description="Radius in meters", ge=0),
+    estimated_roof_area: Optional[float] = Query(None, description="Estimated roof area in m² (for fallback analysis)")
 ):
     """
     Performs a full solar analysis for a location.
+    
+    Automatically uses the best available data source:
+    - Google Solar API: For urban areas with high-resolution imagery
+    - PVGIS: For rural areas without imagery coverage (all of Europe including Ireland)
+    
+    Returns comprehensive solar potential analysis with financial estimates.
     """
     try:
-        data_layers = await solar_client.get_data_layers(
+        # Use unified service - automatically selects best data source
+        results = await unified_solar_service.get_solar_analysis(
             latitude=latitude,
             longitude=longitude,
-            radius_meters=radius_meters
-            # Removed view parameter - let API return all available layers
+            radius_meters=radius_meters,
+            estimated_roof_area=estimated_roof_area
         )
 
-        if not data_layers:
-            raise HTTPException(status_code=404, detail="Could not retrieve data for the location.")
-
-        # Log what data we received for debugging
-        print(f"Data layers keys: {list(data_layers.keys())}")
-        print(f"Has annualFluxUrl: {bool(data_layers.get('annualFluxUrl'))}")
-
-        analysis = SolarAnalysis(data_layers)
-        results = await analysis.analyze()
-
-        if "error" in results:
-            raise HTTPException(
-                status_code=400, 
-                detail=results.get("message", results["error"])
-            )
-
         return results
-    except HTTPException:
-        raise
+        
     except Exception as e:
         print(f"Error in solar analysis: {str(e)}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        raise HTTPException(
+            status_code=500, 
+            detail=f"Unable to analyze solar potential for this location: {str(e)}"
+        )
