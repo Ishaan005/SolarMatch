@@ -89,6 +89,19 @@ cd ..
 
 # Deploy backend to Cloud Run FIRST (so we know its URL)
 echo -e "\n${YELLOW}Deploying backend to Cloud Run...${NC}"
+
+# Check if GEMINI_API_KEY secret exists (optional for chatbot)
+GEMINI_SECRET_EXISTS=$(gcloud secrets describe gemini-api-key --project=$PROJECT_ID 2>/dev/null && echo "true" || echo "false")
+
+if [ "$GEMINI_SECRET_EXISTS" = "true" ]; then
+    echo -e "${GREEN}✓ GEMINI_API_KEY secret found - chatbot will be enabled${NC}"
+    SECRETS_ARG="GOOGLE_SOLAR_API_KEY=google-solar-api-key:latest,DATABASE_URL=database-url:latest,GEMINI_API_KEY=gemini-api-key:latest"
+else
+    echo -e "${YELLOW}⚠ GEMINI_API_KEY secret not found - chatbot will be disabled${NC}"
+    echo -e "${YELLOW}  To enable chatbot, add gemini-api-key to Secret Manager${NC}"
+    SECRETS_ARG="GOOGLE_SOLAR_API_KEY=google-solar-api-key:latest,DATABASE_URL=database-url:latest"
+fi
+
 gcloud run deploy $BACKEND_SERVICE \
     --image $BACKEND_IMAGE \
     --platform managed \
@@ -101,7 +114,7 @@ gcloud run deploy $BACKEND_SERVICE \
     --timeout 300 \
     --port 8000 \
     --set-env-vars "DEBUG=False,ALLOWED_ORIGINS=http://localhost:3000" \
-    --set-secrets "GOOGLE_SOLAR_API_KEY=google-solar-api-key:latest,DATABASE_URL=database-url:latest"
+    --set-secrets "$SECRETS_ARG"
 
 # Get backend URL
 BACKEND_URL=$(gcloud run services describe $BACKEND_SERVICE --region $REGION --format 'value(status.url)')
