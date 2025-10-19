@@ -140,8 +140,24 @@ function ResultsContent() {
         
         const installationCost = Math.round(capacity * costPerKwp)
         
-        // SEAI Solar PV Grant (2024) - €2,400 for residential systems
-        const seaiGrant = 2400
+        // SEAI Solar PV Grant (2025) - Use backend calculation or fallback
+        // 2025 rates: €700/kWp up to 2kWp, then €200/kWp up to 4kWp, max €1,800
+        let seaiGrant = 1800 // Default to maximum
+        
+        if (data.seai_grant?.grant_amount) {
+          // Use grant amount from backend if available
+          seaiGrant = Math.round(data.seai_grant.grant_amount)
+        } else {
+          // Calculate grant based on capacity (2025 structure)
+          if (capacity <= 2.0) {
+            seaiGrant = Math.round(capacity * 700)
+          } else if (capacity <= 4.0) {
+            seaiGrant = Math.round(2.0 * 700 + (capacity - 2.0) * 200)
+          } else {
+            seaiGrant = 1800 // Maximum for 4kWp+
+          }
+        }
+        
         const netInstallationCost = Math.max(0, installationCost - seaiGrant)
         
         // Get annual energy from backend
@@ -682,7 +698,7 @@ function ResultsContent() {
                         <span className="font-mono">€{results.netCost.toLocaleString()}</span>
                       </div>
                       <p className="text-xs text-blue-600 mt-3 pt-2 border-t border-blue-100">
-                        Based on 2024 Irish solar costs. Grant available for residential systems.
+                        2025 SEAI Grant: €700/kWp up to 2kWp, then €200/kWp up to 4kWp (max €1,800)
                       </p>
                     </div>
                   </div>

@@ -1,6 +1,7 @@
 """
 Unified Solar Analysis Service
 Combines Google Solar API (urban areas with imagery) and PVGIS (rural areas)
+Includes SEAI grant calculations for ROI analysis
 """
 
 from typing import Dict, Any, Optional
@@ -8,6 +9,7 @@ from .solar_api import solar_client
 from .pvgis_client import pvgis_client
 from .resultMath import SolarAnalysis
 from .geotiff_processor import geotiff_processor
+from .grants_service import grants_service
 import logging
 
 logger = logging.getLogger(__name__)
@@ -62,11 +64,17 @@ class UnifiedSolarService:
                 analyzer = SolarAnalysis(data_layers, self.processor)
                 result = await analyzer.analyze()
                 
-                # If analysis was successful, return it
+                # If analysis was successful, add grant information
                 if not result.get('error'):
                     result['data_source'] = 'Google Solar API'
                     result['has_imagery'] = True
                     result['imagery_quality'] = data_layers.get('imageryQuality', 'MEDIUM')
+                    
+                    # Add SEAI grant calculation
+                    capacity_kwp = result.get('estimated_capacity_kwp', 0)
+                    if capacity_kwp > 0:
+                        result['seai_grant'] = self._add_grant_information(capacity_kwp)
+                    
                     return result
                 
                 # If analysis failed, fall through to PVGIS
@@ -133,7 +141,7 @@ class UnifiedSolarService:
             annual_energy_kwh = annual_energy_per_kwp * max_capacity_kwp * performance_ratio
             
             # Build response in same format as Google Solar API
-            return {
+            result = {
                 "data_source": "PVGIS",
                 "has_imagery": False,
                 "coverage_type": "modeled",
@@ -175,6 +183,12 @@ class UnifiedSolarService:
                     f"Optimal panel angle: {pvgis_data.get('optimal_tilt_angle', 35)}° (south-facing)"
                 ]
             }
+            
+            # Add SEAI grant information
+            if max_capacity_kwp > 0:
+                result['seai_grant'] = self._add_grant_information(max_capacity_kwp)
+            
+            return result
             
         except Exception as e:
             logger.error(f"PVGIS analysis failed: {str(e)}")
@@ -221,6 +235,35 @@ class UnifiedSolarService:
                 coverage["recommended_source"] = "PVGIS"
         
         return coverage
+    
+    def _add_grant_information(self, capacity_kwp: float) -> Dict[str, Any]:
+        """
+        Add SEAI grant information to analysis results.
+        
+        Args:
+            capacity_kwp: System capacity in kWp
+            
+        Returns:
+            Dictionary with grant information
+        """
+        grant_amount = grants_service.calculate_solar_pv_grant(capacity_kwp)
+        grants_data = grants_service.get_applicable_grants(
+            system_capacity_kwp=capacity_kwp,
+            has_battery=False,
+            property_type="residential"
+        )
+        
+        return {
+            "grant_amount": grant_amount,
+            "grant_scheme": "SEAI Solar PV Grant 2025",
+            "calculation_details": {
+                "system_capacity_kwp": capacity_kwp,
+                "rate_structure": "€700/kWp up to 2kWp, then €200/kWp up to 4kWp",
+                "maximum_grant": 1800.0
+            },
+            "all_grants": grants_data["grants"],
+            "recommendations": grants_data["recommendations"]
+        }
 
 
 # Global instance

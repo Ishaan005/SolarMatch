@@ -88,7 +88,8 @@ gcloud builds submit --tag $BACKEND_IMAGE
 cd ..
 
 # Deploy backend to Cloud Run FIRST (so we know its URL)
-echo -e "\n${YELLOW}Deploying backend to Cloud Run...${NC}"
+# We'll deploy it twice: once to get the URL, then again with proper CORS
+echo -e "\n${YELLOW}Deploying backend to Cloud Run (initial)...${NC}"
 
 # Check if GEMINI_API_KEY secret exists (optional for chatbot)
 GEMINI_SECRET_EXISTS=$(gcloud secrets describe gemini-api-key --project=$PROJECT_ID 2>/dev/null && echo "true" || echo "false")
@@ -153,12 +154,32 @@ gcloud run deploy $FRONTEND_SERVICE \
 FRONTEND_URL=$(gcloud run services describe $FRONTEND_SERVICE --region $REGION --format 'value(status.url)')
 echo -e "${GREEN}✓ Frontend deployed at: $FRONTEND_URL${NC}"
 
-# Update backend CORS to allow frontend domain
+# Redeploy backend with updated CORS to include frontend URL
 echo -e "\n${YELLOW}Updating backend CORS configuration...${NC}"
-gcloud run services update $BACKEND_SERVICE \
+# Create a temporary env vars file to avoid gcloud comma parsing issues
+cat > /tmp/backend-env-vars.yaml <<EOF
+DEBUG: "False"
+ALLOWED_ORIGINS: "${FRONTEND_URL},http://localhost:3000"
+EOF
+
+gcloud run deploy $BACKEND_SERVICE \
+    --image $BACKEND_IMAGE \
+    --platform managed \
     --region $REGION \
-    --update-env-vars "ALLOWED_ORIGINS=${FRONTEND_URL},http://localhost:3000"
-echo -e "${GREEN}✓ CORS updated to allow: $FRONTEND_URL${NC}"
+    --allow-unauthenticated \
+    --memory 2Gi \
+    --cpu 2 \
+    --min-instances 0 \
+    --max-instances 10 \
+    --timeout 300 \
+    --port 8000 \
+    --env-vars-file /tmp/backend-env-vars.yaml \
+    --set-secrets "$SECRETS_ARG"
+
+# Clean up temp file
+rm /tmp/backend-env-vars.yaml
+
+echo -e "${GREEN}✓ CORS updated to allow: $FRONTEND_URL and localhost${NC}"
 
 # Summary
 echo -e "\n${GREEN}Deployment Complete!${NC}"

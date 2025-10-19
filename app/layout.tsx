@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import { ThemeProvider } from "../components/theme-provider"
 import FloatingHelp from "../components/FloatingHelp"
+import ChatWidget from "../components/ChatWidget"
 import "./globals.css";
 
 const geistSans = Geist({
@@ -40,6 +41,7 @@ export default function RootLayout({
         >
           {children}
           <FloatingHelp />
+          <ChatWidget />
         </ThemeProvider>
       </body>
     </html>

@@ -10,6 +10,8 @@ from core.unified_solar_service import unified_solar_service
 # Import chatbot components
 from core.chatbot import ChatbotService, ChatRequest, ChatResponse
 from core.chatbot.models import PredefinedQuestionsResponse, HealthCheckResponse as ChatbotHealthResponse
+# Import grants service
+from core.grants_service import grants_service
 
 from core.community_service import community_service
 from models.coop_models import (
@@ -485,6 +487,56 @@ async def get_solar_analysis(
             status_code=500, 
             detail=f"Unable to analyze solar potential for this location: {str(e)}"
         )
+
+
+# ===== GRANTS ENDPOINTS =====
+
+@app.get("/api/grants/calculate")
+async def calculate_grant(
+    system_capacity_kwp: float = Query(..., description="Solar system capacity in kWp", ge=0, le=20)
+):
+    """
+    Calculate the SEAI Solar PV grant amount for a given system size (2025 rates).
+    
+    Returns the actual grant amount based on tiered structure:
+    - €700 per kWp up to 2kWp
+    - €200 per additional kWp from 2kWp to 4kWp
+    - Maximum €1,800
+    
+    Example: /api/grants/calculate?system_capacity_kwp=3.5
+    """
+    grant_amount = grants_service.calculate_solar_pv_grant(system_capacity_kwp)
+    
+    return {
+        "system_capacity_kwp": system_capacity_kwp,
+        "grant_amount": grant_amount,
+        "grant_details": {
+            "rate_tier_1": "€700/kWp up to 2kWp",
+            "rate_tier_2": "€200/kWp from 2-4kWp",
+            "maximum": "€1,800",
+            "year": "2025"
+        }
+    }
+
+
+@app.get("/api/grants/applicable")
+async def get_applicable_grants(
+    system_capacity_kwp: Optional[float] = Query(None, description="Solar system capacity in kWp"),
+    has_battery: bool = Query(False, description="Whether system includes battery storage"),
+    property_type: str = Query("residential", description="Property type")
+):
+    """
+    Get all grants applicable to a specific solar installation.
+    
+    Returns grants, total amount, and personalized recommendations.
+    
+    Example: /api/grants/applicable?system_capacity_kwp=4.5
+    """
+    return grants_service.get_applicable_grants(
+        system_capacity_kwp=system_capacity_kwp,
+        has_battery=has_battery,
+        property_type=property_type
+    )
 
 
 # ===== CHATBOT ENDPOINTS =====
