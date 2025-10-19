@@ -31,7 +31,7 @@ export default function Hero(){
 
         {/* CTA Button */}
         <div className="flex justify-center mb-10">
-          <Link href="/analyze" className="bg-orange-500 hover:bg-orange-600 transition-all duration-200 text-white px-6 py-2.5 rounded-lg shadow-md hover:shadow-lg font-semibold inline-flex items-center gap-2 text-sm">
+          <Link href="/analyze" className="bg-orange-500 hover:bg-orange-600 transition-all duration-200 text-white px-6 py-2.5 rounded-lg shadow-md hover:shadow-lg hover:scale-110 font-semibold inline-flex items-center gap-2 text-sm transform">
             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
             </svg>
