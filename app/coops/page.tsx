@@ -213,7 +213,7 @@ function CoopsContent() {
           </p>
           <button 
             onClick={() => router.push(`/coops/create?lat=${lat}&lng=${lng}&address=${address}`)}
-            className="bg-white hover:bg-gray-50 text-gray-900 px-6 py-3 rounded-lg font-medium border-2 border-gray-300 transition-colors"
+            className="bg-orange-500 hover:bg-orange-600 text-white px-8 py-3 rounded-lg font-semibold shadow-md hover:shadow-lg transition-all duration-200 transform hover:scale-105"
           >
             Create New Co-op
           </button>
@@ -223,7 +223,7 @@ function CoopsContent() {
         <div className="mt-8 flex justify-center">
           <button 
             onClick={() => router.push('/analyze')}
-            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 font-medium transition-colors"
+            className="flex items-center gap-2 text-gray-700 hover:text-orange-600 font-medium transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-orange-50"
           >
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
