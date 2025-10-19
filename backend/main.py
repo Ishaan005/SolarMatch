@@ -1,16 +1,21 @@
 from fastapi import FastAPI, Query, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
-from typing import Optional, List
+from typing import Optional
 from core.solar_api import solar_client
 from core.config import settings
 from core.geotiff_processor import geotiff_processor
-from core.resultMath import SolarAnalysis
 from core.unified_solar_service import unified_solar_service
 from core.community_service import community_service
-from core.coop_models import (
-    CommunityStatus, CreateCommunityRequest, JoinCommunityRequest, CommunitySearchFilters
+from models.coop_models import (
+    CommunityStatus, CreateCommunityRequest, JoinCommunityRequest
 )
+from core.database import init_database, create_tables
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="SolarMatch API")
 
@@ -22,6 +27,39 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize database connection on startup"""
+    logger.info("Starting up SolarMatch API...")
+    
+    # Initialize database
+    db_initialized = init_database()
+    if db_initialized:
+        logger.info("✓ Database connection established")
+        
+        # Create tables if they don't exist
+        try:
+            create_tables()
+            logger.info("✓ Database tables verified/created")
+        except Exception as e:
+            logger.warning(f"Could not create tables (they may already exist): {e}")
+        
+        # IMPORTANT: Reset the repository's cached database check
+        # This ensures the repository knows the database is now available
+        community_service.repository.reset_database_cache()
+        logger.info("✓ Repository configured to use database")
+        
+        # Initialize sample community data (only if database is empty)
+        community_service.ensure_sample_data()
+    else:
+        logger.warning("⚠ Database not configured - using in-memory storage for community features")
+        logger.info("  To enable database: Set DATABASE_URL in .env file")
+        # Still initialize sample data for in-memory storage
+        community_service.ensure_sample_data()
+    
+    logger.info("SolarMatch API ready!")
 
 
 @app.get("/")

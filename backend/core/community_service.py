@@ -8,25 +8,40 @@ from typing import List, Optional, Dict, Any
 from datetime import datetime
 import uuid
 import math
-from .coop_models import (
+from models.coop_models import (
     CommunityProject, HomeParticipant, CommunityLocation, SolarFeasibility,
     CommunityFinancials, CommunityStatus, ParticipantStatus, CommunityDashboard,
     CreateCommunityRequest, JoinCommunityRequest, CommunitySearchFilters
 )
 from .unified_solar_service import unified_solar_service
+from .community_repository import community_repository
 
 
 class CommunityService:
     """Business logic for community solar coordination platform"""
     
     def __init__(self):
-        # In-memory storage for hackathon (replace with database)
-        self.communities: Dict[str, CommunityProject] = {}
-        self.participants: Dict[str, HomeParticipant] = {}
+        # Use repository layer (works with database or in-memory storage)
+        self.repository = community_repository
+        self._sample_data_initialized = False
+    
+    def ensure_sample_data(self):
+        """Ensure sample data is loaded (call this after database is initialized)"""
+        if self._sample_data_initialized:
+            return
+        
         self._init_sample_data()
+        self._sample_data_initialized = True
     
     def _init_sample_data(self):
-        """Initialize with sample Irish community solar projects"""
+        """Initialize with sample Irish community solar projects (only if database is empty)"""
+        # Check if we already have communities - don't reinitialize if database has data
+        existing = self.repository.list_communities(limit=1)
+        if existing:
+            print(f"Database already has {len(existing)} communities - skipping sample data initialization")
+            return
+        
+        print("Initializing sample community data...")
         sample_communities = [
             {
                 "name": "Ballyduff Estate Solar Initiative",
@@ -85,7 +100,7 @@ class CommunityService:
             # CO2 calculations
             co2_reduction = annual_energy_kwh * 0.4  # 0.4 kg CO2 per kWh
             
-            self.communities[community_id] = CommunityProject(
+            community = CommunityProject(
                 id=community_id,
                 name=data["name"],
                 description=data["description"],
@@ -115,6 +130,7 @@ class CommunityService:
                 coordinator_name="Community Coordinator",
                 coordinator_contact="coordinator@example.com"
             )
+            self.repository.create_community(community)
     
     async def create_community(self, request: CreateCommunityRequest) -> Dict[str, Any]:
         """Create a new community solar coordination project"""
@@ -152,7 +168,7 @@ class CommunityService:
             coordinator_contact=request.coordinator_contact
         )
         
-        self.communities[community_id] = community
+        self.repository.create_community(community)
         
         return {
             "success": True,
@@ -162,7 +178,7 @@ class CommunityService:
     
     async def join_community(self, request: JoinCommunityRequest) -> Dict[str, Any]:
         """Add a participant to a community project"""
-        community = self.communities.get(request.community_id)
+        community = self.repository.get_community(request.community_id)
         if not community:
             raise ValueError(f"Community {request.community_id} not found")
         
@@ -203,7 +219,7 @@ class CommunityService:
             join_date=datetime.now()
         )
         
-        self.participants[participant_id] = participant
+        self.repository.create_participant(participant)
         
         # Update community aggregates
         community.participant_count += 1
@@ -221,6 +237,7 @@ class CommunityService:
         self._update_community_financials(community)
         
         community.updated_date = datetime.now()
+        self.repository.update_community(community)
         
         return {
             "success": True,
@@ -276,7 +293,10 @@ class CommunityService:
         
         results = []
         
-        for community in self.communities.values():
+        # Get communities from repository
+        communities = self.repository.list_communities(county=county, status=status)
+        
+        for community in communities:
             # Filter by status
             if status and community.status not in status:
                 continue
@@ -329,11 +349,11 @@ class CommunityService:
     
     def get_community(self, community_id: str) -> Optional[CommunityProject]:
         """Get community project by ID"""
-        return self.communities.get(community_id)
+        return self.repository.get_community(community_id)
     
     def get_community_dashboard(self, community_id: str) -> Optional[CommunityDashboard]:
         """Get dashboard data for a community"""
-        community = self.communities.get(community_id)
+        community = self.repository.get_community(community_id)
         if not community:
             return None
         
