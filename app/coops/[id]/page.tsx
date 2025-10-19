@@ -19,6 +19,8 @@ interface CommunityDetails {
   total_annual_energy_kwh: number
   total_co2_reduction_kg_year: number
   participant_count: number
+  max_members: number | null
+  accepting_members: boolean
   interested_count: number
   committed_count: number
   installed_count: number
@@ -148,7 +150,7 @@ export default function CommunityDetailPage() {
               
               <p className="text-gray-600 mb-4">{community.description}</p>
               
-              <div className="flex items-center gap-4 text-sm text-gray-600">
+              <div className="flex items-center gap-4 text-sm text-gray-600 mb-3">
                 <div className="flex items-center gap-1">
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
@@ -157,16 +159,47 @@ export default function CommunityDetailPage() {
                   <span>{community.location.address}</span>
                 </div>
               </div>
+              
+              <div className="flex items-center gap-2">
+                <div className="flex items-center gap-1 text-sm">
+                  <svg className="w-4 h-4 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                  </svg>
+                  <span className="font-semibold text-gray-900">
+                    {community.participant_count}
+                    {community.max_members ? ` / ${community.max_members}` : ''} members
+                  </span>
+                </div>
+                {community.max_members && community.participant_count >= community.max_members && (
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-red-100 text-red-700">
+                    Full
+                  </span>
+                )}
+                {community.accepting_members && (!community.max_members || community.participant_count < community.max_members) && (
+                  <span className="px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-700">
+                    Accepting Members
+                  </span>
+                )}
+              </div>
             </div>
 
             {/* Join Button */}
             <div className="flex flex-col gap-3">
-              <button
-                onClick={() => setShowJoinModal(true)}
-                className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
-              >
-                Express Interest
-              </button>
+              {community.accepting_members && (!community.max_members || community.participant_count < community.max_members) ? (
+                <button
+                  onClick={() => setShowJoinModal(true)}
+                  className="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg font-medium transition-colors"
+                >
+                  Request to Join
+                </button>
+              ) : (
+                <button
+                  disabled
+                  className="bg-gray-300 text-gray-500 px-6 py-3 rounded-lg font-medium cursor-not-allowed"
+                >
+                  Currently Full
+                </button>
+              )}
               <button
                 onClick={() => window.location.href = `mailto:${community.coordinator_contact}?subject=Question about ${community.name}`}
                 className="bg-white hover:bg-gray-50 text-gray-900 px-6 py-3 rounded-lg font-medium border-2 border-gray-300 transition-colors"
@@ -187,8 +220,13 @@ export default function CommunityDetailPage() {
                 </svg>
               </div>
               <div>
-                <div className="text-2xl font-bold text-gray-900">{community.participant_count}</div>
-                <div className="text-sm text-gray-600">Participants</div>
+                <div className="text-2xl font-bold text-gray-900">
+                  {community.participant_count}
+                  {community.max_members && <span className="text-lg text-gray-500">/{community.max_members}</span>}
+                </div>
+                <div className="text-sm text-gray-600">
+                  {community.max_members && community.participant_count >= community.max_members ? 'Members (Full)' : 'Members'}
+                </div>
               </div>
             </div>
           </div>
@@ -405,33 +443,53 @@ export default function CommunityDetailPage() {
 
         {/* Join Modal */}
         {showJoinModal && (
-          <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-xl max-w-md w-full p-6">
-              <h3 className="text-xl font-semibold text-gray-900 mb-4">
-                Express Interest
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Contact the coordinator to learn more and express your interest in joining this community solar project.
-              </p>
-              <div className="flex gap-3">
-                <button
-                  onClick={() => {
-                    window.location.href = `mailto:${community.coordinator_contact}?subject=Interest in ${community.name}&body=Hi, I'm interested in joining the ${community.name} community solar project. Can you provide more information?`
-                    setShowJoinModal(false)
-                  }}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700 text-white px-4 py-2.5 rounded-lg font-medium transition-colors"
-                >
-                  Email Coordinator
-                </button>
-                <button
-                  onClick={() => setShowJoinModal(false)}
-                  className="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-900 px-4 py-2.5 rounded-lg font-medium transition-colors"
-                >
-                  Cancel
-                </button>
+          <>
+            <div className="fixed inset-0 bg-black/50 z-40 backdrop-blur-sm" onClick={() => setShowJoinModal(false)} />
+            <div className="fixed inset-0 flex items-center justify-center z-50 p-4">
+              <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full p-8">
+                <h3 className="text-2xl font-bold text-gray-900 mb-4">Request to Join</h3>
+                <p className="text-gray-600 mb-4">
+                  You're about to request to join <strong>{community.name}</strong>. The community coordinator will review your request and contact you with next steps.
+                </p>
+                
+                <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-4">
+                  <div className="flex items-center justify-between text-sm mb-2">
+                    <span className="text-purple-900 font-medium">Current Members:</span>
+                    <span className="text-purple-900 font-bold">
+                      {community.participant_count}
+                      {community.max_members && ` / ${community.max_members}`}
+                    </span>
+                  </div>
+                  {community.max_members && (
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-purple-900 font-medium">Available Spots:</span>
+                      <span className="text-purple-900 font-bold">
+                        {community.max_members - community.participant_count}
+                      </span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => setShowJoinModal(false)}
+                    className="flex-1 px-4 py-3 border-2 border-gray-300 rounded-lg font-semibold hover:bg-gray-50 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={() => {
+                      window.location.href = `mailto:${community.coordinator_contact}?subject=Request to Join ${community.name}&body=Hi,%0D%0A%0D%0AI would like to request to join the ${community.name} community solar project.%0D%0A%0D%0APlease let me know the next steps to become a member.%0D%0A%0D%0AThank you!`
+                      setShowJoinModal(false)
+                    }}
+                    className="flex-1 px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors"
+                  >
+                    Send Request
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          </>
         )}
       </main>
     </div>

@@ -202,7 +202,13 @@ function CoopsContent() {
                           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
                           </svg>
-                          <span>{coop.member_count} members</span>
+                          <span>
+                            {coop.member_count}
+                            {coop.max_members ? ` / ${coop.max_members}` : ''} members
+                            {coop.max_members && coop.member_count >= coop.max_members && (
+                              <span className="ml-1 text-red-600 font-medium">(Full)</span>
+                            )}
+                          </span>
                         </div>
                         {coop.distance_km !== null && (
                           <div className="flex items-center gap-1">
@@ -250,18 +256,17 @@ function CoopsContent() {
                   {/* Right side - Status and Button */}
                   <div className="flex flex-col items-end gap-3">
                     <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-                      !coop.accepting_members
-                        ? "bg-gray-200 text-gray-700" 
-                        : "bg-green-100 text-green-700"
+                      coop.accepting_members && (!coop.max_members || coop.member_count < coop.max_members)
+                        ? "bg-green-100 text-green-700"
+                        : "bg-gray-200 text-gray-700" 
                     }`}>
-                      {coop.accepting_members ? "Accepting Members" : "Full"}
+                      {coop.accepting_members && (!coop.max_members || coop.member_count < coop.max_members) ? "Accepting Members" : "Full"}
                     </span>
                     <button 
-                      className="bg-black hover:bg-gray-900 text-white px-6 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                      disabled={!coop.accepting_members}
+                      className="bg-black hover:bg-gray-900 text-white px-6 py-2.5 rounded-lg font-medium transition-colors"
                       onClick={() => router.push(`/coops/${coop.id}`)}
                     >
-                      {coop.accepting_members ? "Request to Join" : "View Details"}
+                      View Details
                     </button>
                   </div>
                 </div>
