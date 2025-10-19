@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { usePathname } from "next/navigation"
 
 export default function Header(){
@@ -41,16 +42,35 @@ export default function Header(){
     <header className="w-full bg-white/90 backdrop-blur-md border-b border-gray-200/60 z-20 sticky top-0 shadow-sm">
       <div className="container-max px-6 py-4 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-3 hover:opacity-80 transition-opacity" aria-label="SolarMatch Home">
-          <div className="w-10 h-10 rounded-full bg-gradient-to-br from-orange-400 to-orange-500 flex items-center justify-center text-white shadow-md hover:shadow-lg transition-shadow"> 
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-              <path d="M12 4V2M12 22v-2M4 12H2M22 12h-2M5 5l-1.5-1.5M20.5 20.5 19 19M19 5l1.5-1.5M5 19l-1.5 1.5" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
-              <circle cx="12" cy="12" r="3" stroke="currentColor" strokeWidth="1.5"/>
-            </svg>
+          <div className="h-12 w-auto relative" style={{ mixBlendMode: 'darken' }}>
+            <Image 
+              src="/logo.png" 
+              alt="SolarMatch Logo" 
+              width={120} 
+              height={120} 
+              className="h-12 w-auto object-contain"
+              style={{ 
+                filter: 'brightness(1.2) contrast(1.1)',
+                backgroundColor: 'transparent'
+              }}
+            />
           </div>
           <span className="font-bold text-xl text-orange-600 hidden sm:block">SolarMatch</span>
         </Link>
         
         <div className="flex items-center gap-4">
+          {/* Platform Link */}
+          <Link 
+            href="/platform" 
+            className="inline-flex items-center gap-2 bg-gradient-to-r from-orange-500 to-orange-600 text-white hover:from-orange-600 hover:to-orange-700 transition-all text-sm font-semibold px-5 py-2.5 rounded-lg shadow-md hover:shadow-lg active:scale-95 group"
+            aria-label="Platform"
+          >
+            <svg className="w-4 h-4 transition-transform group-hover:rotate-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+            </svg>
+            <span>Platform</span>
+          </Link>
+
           {/* Dark/Light Mode Toggle */}
           {isHomePage && (
             <div className="flex items-center gap-3 bg-gray-100 rounded-full px-4 py-2 shadow-inner" role="group" aria-label="Theme toggle">

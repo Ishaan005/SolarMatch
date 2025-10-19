@@ -37,26 +37,26 @@ export default function Home(){
       <main>
         <Hero />
 
-        {/* Features Section - Redesigned */}
-        <section className="relative py-20 overflow-hidden">
+        {/* Features Section - Compact & Modern */}
+        <section className="relative py-12 overflow-hidden">
           {/* Subtle background decoration */}
           <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white pointer-events-none"></div>
-          <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-100/30 rounded-full blur-3xl"></div>
-          <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-orange-100/30 rounded-full blur-3xl"></div>
+          <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-100/20 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-orange-100/20 rounded-full blur-3xl"></div>
           
-          <div className="max-w-7xl mx-auto px-6 relative z-10">
-            {/* Section Header */}
-            <div className="text-center mb-16">
-              <h2 className="text-3xl sm:text-4xl font-bold text-gray-900 mb-4">
+          <div className="max-w-6xl mx-auto px-6 relative z-10">
+            {/* Section Header - More compact */}
+            <div className="text-center mb-10">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
                 How SolarMatch Works
               </h2>
-              <p className="text-gray-600 max-w-2xl mx-auto text-lg">
+              <p className="text-gray-600 max-w-xl mx-auto text-sm">
                 Four powerful features to help you make the switch to solar energy
               </p>
             </div>
 
-            {/* Feature Cards Grid */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 justify-items-center">
+            {/* Feature Cards Grid - Tighter spacing */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 justify-items-center mb-10">
               <FeatureCard title="Satellite Analysis" color="bg-gradient-to-br from-blue-50 to-blue-100/50" icon={<MapPinIcon />}>
                 AI-powered rooftop identification using satellite imagery
               </FeatureCard>
@@ -70,27 +70,22 @@ export default function Home(){
                 Join neighbours to share costs and go solar together
               </FeatureCard>
             </div>
-          </div>
-        </section>
 
-        {/* Optional: Add a stats or trust section */}
-        <section className="bg-gradient-to-b from-white to-gray-50 py-16">
-          <div className="max-w-7xl mx-auto px-6">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 text-center">
-              <div className="p-6">
-                <div className="text-4xl font-bold text-orange-500 mb-2">100%</div>
-                <div className="text-gray-600 font-medium">Free Analysis</div>
-                <p className="text-sm text-gray-500 mt-2">No credit card required</p>
-              </div>
-              <div className="p-6">
-                <div className="text-4xl font-bold text-orange-500 mb-2">&lt;1min</div>
-                <div className="text-gray-600 font-medium">Instant Results</div>
-                <p className="text-sm text-gray-500 mt-2">Get your solar report immediately</p>
-              </div>
-              <div className="p-6">
-                <div className="text-4xl font-bold text-orange-500 mb-2">€1000s</div>
-                <div className="text-gray-600 font-medium">Potential Savings</div>
-                <p className="text-sm text-gray-500 mt-2">Save with solar co-ops</p>
+            {/* Inline Stats Bar - Compact */}
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200/50 p-6">
+              <div className="grid grid-cols-3 gap-6 text-center">
+                <div>
+                  <div className="text-3xl font-bold text-orange-600 mb-1">100%</div>
+                  <div className="text-xs text-gray-600 font-medium">Free Analysis</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-orange-600 mb-1">&lt;1min</div>
+                  <div className="text-xs text-gray-600 font-medium">Instant Results</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-orange-600 mb-1">€1000s</div>
+                  <div className="text-xs text-gray-600 font-medium">Potential Savings</div>
+                </div>
               </div>
             </div>
           </div>

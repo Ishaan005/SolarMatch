@@ -17,6 +17,10 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "SolarMatch - Find Your Solar Potential",
   description: "Discover if your rooftop is ideal for solar panels. Get instant estimates on costs, savings, and join your neighbours to go solar together.",
+  icons: {
+    icon: '/logo.png',
+    apple: '/logo.png',
+  },
 };
 
 export default function RootLayout({

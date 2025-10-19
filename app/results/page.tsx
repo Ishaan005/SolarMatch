@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Header from "../../components/Header"
+import { generateSolarPDF, downloadPDF } from "../../lib/pdfGenerator"
 
 function ResultsContent() {
   const searchParams = useSearchParams()
@@ -35,6 +36,35 @@ function ResultsContent() {
   const [viewMode, setViewMode] = useState<'satellite' | 'heatmap'>('satellite')
   const [isLoadingHeatmap, setIsLoadingHeatmap] = useState(true)
   const [heatmapError, setHeatmapError] = useState(false)
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+
+  // Handler for PDF generation
+  const handleGeneratePDF = async () => {
+    try {
+      setIsGeneratingPDF(true)
+      
+      console.log('Generating PDF with images:', {
+        hasSatellite: !!results.satelliteImage,
+        hasHeatmap: !!results.heatmapImage
+      })
+      
+      const pdf = await generateSolarPDF(
+        results,
+        results.satelliteImage || undefined,
+        results.heatmapImage || undefined
+      )
+      
+      const filename = `solar-report-${results.address.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`
+      downloadPDF(pdf, filename)
+      
+      console.log('PDF generated successfully')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Failed to generate PDF report. Please try again.')
+    } finally {
+      setIsGeneratingPDF(false)
+    }
+  }
 
   // Fetch solar analysis data from backend
   useEffect(() => {
@@ -173,6 +203,7 @@ function ResultsContent() {
   useEffect(() => {
     const fetchHeatmap = async () => {
       if (!lat || !lng) {
+        console.log('Heatmap fetch skipped: No coordinates')
         setIsLoadingHeatmap(false)
         setHeatmapError(true)
         return
@@ -185,18 +216,23 @@ function ResultsContent() {
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
         const url = `${backendUrl}/api/solar/annual-flux-heatmap?latitude=${lat}&longitude=${lng}&radius_meters=50&colormap=hot&max_width=800&max_height=800`
         
+        console.log('Fetching heatmap from:', url)
         const response = await fetch(url)
 
         if (!response.ok) {
+          const errorText = await response.text()
+          console.error('Heatmap fetch failed:', response.status, errorText)
           throw new Error(`Failed to fetch heatmap: ${response.status}`)
         }
 
         const blob = await response.blob()
+        console.log('Heatmap blob received:', blob.size, 'bytes')
         const imageUrl = URL.createObjectURL(blob)
         
         // Preload the image to ensure it's ready before displaying
         const img = new Image()
         img.onload = () => {
+          console.log('Heatmap image loaded successfully')
           setResults(prev => ({
             ...prev,
             heatmapImage: imageUrl
@@ -204,6 +240,7 @@ function ResultsContent() {
           setIsLoadingHeatmap(false)
         }
         img.onerror = () => {
+          console.error('Heatmap image failed to load')
           URL.revokeObjectURL(imageUrl)
           setHeatmapError(true)
           setIsLoadingHeatmap(false)
@@ -237,31 +274,60 @@ function ResultsContent() {
       <Header />
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {/* Status Badge */}
-        <div className="mb-3 flex items-center gap-2">
-          {isLoadingAnalysis ? (
-            <span className="inline-block px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-              <svg className="inline w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Analyzing Solar Potential...
-            </span>
-          ) : analysisError ? (
-            <span className="inline-block px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
-              Analysis Failed
-            </span>
-          ) : (
-            <>
-              <span className="inline-block px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                Analysis Complete
+        {/* Status Badge and Action Buttons */}
+        <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            {isLoadingAnalysis ? (
+              <span className="inline-block px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                <svg className="inline w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Analyzing Solar Potential...
               </span>
-              {results.dataSource && (
-                <span className="inline-block px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                  {results.dataSource === "PVGIS" ? "Modeled Data" : "High-Res Imagery"}
+            ) : analysisError ? (
+              <span className="inline-block px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                Analysis Failed
+              </span>
+            ) : (
+              <>
+                <span className="inline-block px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                  Analysis Complete
                 </span>
+                {results.dataSource && (
+                  <span className="inline-block px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                    {results.dataSource === "PVGIS" ? "Modeled Data" : "High-Res Imagery"}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+          
+          {/* PDF Download Button */}
+          {!isLoadingAnalysis && !analysisError && (
+            <button
+              onClick={handleGeneratePDF}
+              disabled={isGeneratingPDF}
+              className="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+              aria-label="Download PDF Report"
+            >
+              {isGeneratingPDF ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>Download PDF Report</span>
+                </>
               )}
-            </>
+            </button>
           )}
         </div>
 
