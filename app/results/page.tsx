@@ -86,7 +86,8 @@ function ResultsContent() {
         setAnalysisError(null)
         
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
-        const analysisUrl = `${backendUrl}/api/solar/analysis?latitude=${lat}&longitude=${lng}&radius_meters=50`
+        // Use 10m radius for residential properties (covers ~314 m² area - typical single home)
+        const analysisUrl = `${backendUrl}/api/solar/analysis?latitude=${lat}&longitude=${lng}&radius_meters=10`
         const response = await fetch(analysisUrl)
 
         if (!response.ok) {
@@ -231,6 +232,7 @@ function ResultsContent() {
         
         // Use optimized parameters for faster loading
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
+        // Use 30m radius for imagery (good visual context) but 10m for analysis (focused calculation)
         const url = `${backendUrl}/api/solar/rgb-image?latitude=${lat}&longitude=${lng}&radius_meters=50&max_width=800&max_height=800`
         
         const response = await fetch(url)
@@ -283,7 +285,8 @@ function ResultsContent() {
         setHeatmapError(false)
         
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
-        const url = `${backendUrl}/api/solar/annual-flux-heatmap?latitude=${lat}&longitude=${lng}&radius_meters=50&colormap=hot&max_width=800&max_height=800`
+        // Use 30m radius for heatmap display (matches satellite view for consistency)
+        const url = `${backendUrl}/api/solar/annual-flux-heatmap?latitude=${lat}&longitude=${lng}&radius_meters=30&colormap=hot&max_width=800&max_height=800`
         
         console.log('Fetching heatmap from:', url)
         const response = await fetch(url)

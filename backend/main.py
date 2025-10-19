@@ -458,7 +458,7 @@ async def check_solar_coverage(
 async def get_solar_analysis(
     latitude: float = Query(..., description="Latitude of the location"),
     longitude: float = Query(..., description="Longitude of the location"),
-    radius_meters: float = Query(50.0, description="Radius in meters", ge=0),
+    radius_meters: float = Query(10.0, description="Radius in meters (10m = ~314m² area, suitable for single residential property)", ge=0, le=50),
     estimated_roof_area: Optional[float] = Query(None, description="Estimated roof area in m² (for fallback analysis)")
 ):
     """

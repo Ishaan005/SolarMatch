@@ -39,6 +39,7 @@ class SolarAnalysis:
 
             roof_area_sq_meters = 0
             usable_roof_area = 0
+            theoretically_usable_area = 0
             
             if self.data_layers.get('maskUrl'):
                 mask_data = await self.processor.download_geotiff(self.data_layers['maskUrl'])
@@ -51,22 +52,24 @@ class SolarAnalysis:
                 roof_area_sq_meters = roof_pixels * pixel_area
                 
                 # Calculate usable area based on solar flux quality
-                # Only count areas with good solar potential (>50% of mean flux)
-                # This threshold allows east/west-facing roofs which are still viable in Ireland
-                flux_threshold = flux_stats.get('mean', 0) * 0.50
+                # Use 75% of mean flux as threshold - only high-quality areas
+                # This filters out poorly-oriented sections (heavy north-facing, shaded)
+                flux_threshold = flux_stats.get('mean', 0) * 0.75
                 
                 # Mask areas with good flux
                 good_flux_mask = flux_array > flux_threshold
                 combined_mask = mask_array & good_flux_mask
                 usable_pixels = np.count_nonzero(combined_mask)
-                usable_roof_area = usable_pixels * pixel_area
+                theoretically_usable_area = usable_pixels * pixel_area
                 
-                # Apply practical reduction factors:
-                # - Setbacks from edges: 10%
-                # - Obstructions (vents, chimneys): 12% (typical residential)
-                # - Access and safety margins: 5%
-                # Total practical usable: ~73% of theoretically usable area
-                usable_roof_area = usable_roof_area * 0.73
+                # Apply realistic reduction factors for actual installation:
+                # - Setbacks from edges and ridges: 15%
+                # - Obstructions (vents, chimneys, skylights): 15%
+                # - Access pathways and safety margins: 10%
+                # - Fire safety clearances: 5%
+                # Total practical usable: ~55% of theoretically usable area
+                # This gives us realistic installable area comparable to professional assessments
+                usable_roof_area = theoretically_usable_area * 0.55
 
             # Panel and system parameters
             panel_efficiency = 0.20  # 20% efficient modern panels (only used if calculating from raw irradiance)
@@ -103,13 +106,13 @@ class SolarAnalysis:
                 },
                 "calculation_notes": {
                     "total_roof_area_m2": round(roof_area_sq_meters, 2),
-                    "usable_area_after_flux_filtering_m2": round(usable_roof_area / 0.73, 2) if usable_roof_area > 0 else 0,
+                    "theoretically_usable_area_m2": round(theoretically_usable_area, 2) if usable_roof_area > 0 else 0,
                     "practical_usable_area_m2": round(usable_roof_area, 2),
-                    "flux_threshold": "50% of mean (allows viable east/west orientations)",
-                    "reduction_factors": "Accounts for edge setbacks (10%), obstructions (12%), safety margins (5%)",
+                    "flux_threshold": "75% of mean (high-quality areas only)",
+                    "reduction_factors": "Edge setbacks (15%), obstructions (15%), access/safety (10%), fire clearances (5%) = 55% usable",
                     "area_per_kwp": area_per_kwp,
                     "performance_ratio": performance_ratio,
-                    "note": "Performance ratio 0.82 is realistic for modern Irish systems (2024 standard)"
+                    "note": "Conservative estimate aligned with professional solar assessments"
                 }
             }
         except Exception as e:
