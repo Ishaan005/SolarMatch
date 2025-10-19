@@ -41,6 +41,7 @@ app.add_middleware(
 @app.on_event("startup")
 async def startup_event():
     """Initialize database connection on startup"""
+    global chatbot_service
     logger.info("Starting up SolarMatch API...")
     
     # Initialize database
@@ -67,6 +68,20 @@ async def startup_event():
         logger.info("  To enable database: Set DATABASE_URL in .env file")
         # Still initialize sample data for in-memory storage
         community_service.ensure_sample_data()
+    
+    # Initialize chatbot service (optional feature)
+    try:
+        from core.chatbot.config import ChatbotConfig
+        if ChatbotConfig.is_configured():
+            chatbot_service = ChatbotService()
+            await chatbot_service.initialize()
+            logger.info("✓ Chatbot service initialized")
+        else:
+            logger.warning("⚠ Chatbot not configured - GEMINI_API_KEY not set")
+            logger.info("  Chatbot endpoints will return service unavailable")
+    except Exception as e:
+        logger.warning(f"⚠ Chatbot initialization failed: {e}")
+        logger.info("  Chatbot endpoints will return service unavailable")
     
     logger.info("SolarMatch API ready!")
 

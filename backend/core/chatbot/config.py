@@ -48,7 +48,12 @@ Guidelines:
         if not cls.GEMINI_API_KEY:
             raise ValueError("GEMINI_API_KEY not set in environment variables")
         return True
+    
+    @classmethod
+    def is_configured(cls) -> bool:
+        """Check if chatbot is properly configured"""
+        return bool(cls.GEMINI_API_KEY)
 
 
-# Validate on import
-ChatbotConfig.validate()
+# Don't validate on import - allow backend to start without chatbot configured
+# Validation will happen when chatbot is actually used
