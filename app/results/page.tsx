@@ -3,6 +3,7 @@
 import { useState, useEffect, Suspense } from "react"
 import { useSearchParams, useRouter } from "next/navigation"
 import Header from "../../components/Header"
+import { generateSolarPDF, downloadPDF } from "../../lib/pdfGenerator"
 
 function ResultsContent() {
   const searchParams = useSearchParams()
@@ -35,6 +36,35 @@ function ResultsContent() {
   const [viewMode, setViewMode] = useState<'satellite' | 'heatmap'>('satellite')
   const [isLoadingHeatmap, setIsLoadingHeatmap] = useState(true)
   const [heatmapError, setHeatmapError] = useState(false)
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false)
+
+  // Handler for PDF generation
+  const handleGeneratePDF = async () => {
+    try {
+      setIsGeneratingPDF(true)
+      
+      console.log('Generating PDF with images:', {
+        hasSatellite: !!results.satelliteImage,
+        hasHeatmap: !!results.heatmapImage
+      })
+      
+      const pdf = await generateSolarPDF(
+        results,
+        results.satelliteImage || undefined,
+        results.heatmapImage || undefined
+      )
+      
+      const filename = `solar-report-${results.address.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.pdf`
+      downloadPDF(pdf, filename)
+      
+      console.log('PDF generated successfully')
+    } catch (error) {
+      console.error('Error generating PDF:', error)
+      alert('Failed to generate PDF report. Please try again.')
+    } finally {
+      setIsGeneratingPDF(false)
+    }
+  }
 
   // Fetch solar analysis data from backend
   useEffect(() => {
@@ -173,6 +203,7 @@ function ResultsContent() {
   useEffect(() => {
     const fetchHeatmap = async () => {
       if (!lat || !lng) {
+        console.log('Heatmap fetch skipped: No coordinates')
         setIsLoadingHeatmap(false)
         setHeatmapError(true)
         return
@@ -185,18 +216,23 @@ function ResultsContent() {
         const backendUrl = process.env.NEXT_PUBLIC_BACKEND_URL || 'http://localhost:8000'
         const url = `${backendUrl}/api/solar/annual-flux-heatmap?latitude=${lat}&longitude=${lng}&radius_meters=50&colormap=hot&max_width=800&max_height=800`
         
+        console.log('Fetching heatmap from:', url)
         const response = await fetch(url)
 
         if (!response.ok) {
+          const errorText = await response.text()
+          console.error('Heatmap fetch failed:', response.status, errorText)
           throw new Error(`Failed to fetch heatmap: ${response.status}`)
         }
 
         const blob = await response.blob()
+        console.log('Heatmap blob received:', blob.size, 'bytes')
         const imageUrl = URL.createObjectURL(blob)
         
         // Preload the image to ensure it's ready before displaying
         const img = new Image()
         img.onload = () => {
+          console.log('Heatmap image loaded successfully')
           setResults(prev => ({
             ...prev,
             heatmapImage: imageUrl
@@ -204,6 +240,7 @@ function ResultsContent() {
           setIsLoadingHeatmap(false)
         }
         img.onerror = () => {
+          console.error('Heatmap image failed to load')
           URL.revokeObjectURL(imageUrl)
           setHeatmapError(true)
           setIsLoadingHeatmap(false)
@@ -237,31 +274,60 @@ function ResultsContent() {
       <Header />
 
       <main className="max-w-6xl mx-auto px-6 py-8">
-        {/* Status Badge */}
-        <div className="mb-3 flex items-center gap-2">
-          {isLoadingAnalysis ? (
-            <span className="inline-block px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
-              <svg className="inline w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-              </svg>
-              Analyzing Solar Potential...
-            </span>
-          ) : analysisError ? (
-            <span className="inline-block px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
-              Analysis Failed
-            </span>
-          ) : (
-            <>
-              <span className="inline-block px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
-                Analysis Complete
+        {/* Status Badge and Action Buttons */}
+        <div className="mb-3 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            {isLoadingAnalysis ? (
+              <span className="inline-block px-3 py-1.5 bg-blue-100 text-blue-700 rounded-full text-xs font-medium">
+                <svg className="inline w-3 h-3 mr-1 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                </svg>
+                Analyzing Solar Potential...
               </span>
-              {results.dataSource && (
-                <span className="inline-block px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
-                  {results.dataSource === "PVGIS" ? "Modeled Data" : "High-Res Imagery"}
+            ) : analysisError ? (
+              <span className="inline-block px-3 py-1.5 bg-red-100 text-red-700 rounded-full text-xs font-medium">
+                Analysis Failed
+              </span>
+            ) : (
+              <>
+                <span className="inline-block px-3 py-1.5 bg-green-100 text-green-700 rounded-full text-xs font-medium">
+                  Analysis Complete
                 </span>
+                {results.dataSource && (
+                  <span className="inline-block px-3 py-1.5 bg-gray-100 text-gray-700 rounded-full text-xs font-medium">
+                    {results.dataSource === "PVGIS" ? "Modeled Data" : "High-Res Imagery"}
+                  </span>
+                )}
+              </>
+            )}
+          </div>
+          
+          {/* PDF Download Button */}
+          {!isLoadingAnalysis && !analysisError && (
+            <button
+              onClick={handleGeneratePDF}
+              disabled={isGeneratingPDF}
+              className="inline-flex items-center gap-2 bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all shadow-md hover:shadow-lg disabled:opacity-50 disabled:cursor-not-allowed active:scale-95"
+              aria-label="Download PDF Report"
+            >
+              {isGeneratingPDF ? (
+                <>
+                  <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                  </svg>
+                  <span>Generating...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                  <span>Download PDF Report</span>
+                </>
               )}
-            </>
+            </button>
           )}
         </div>
 
@@ -488,9 +554,19 @@ function ResultsContent() {
 
             {/* Financial Overview */}
             <div className="bg-white rounded-2xl shadow-sm p-10 border border-gray-200">
-              <h2 className="text-2xl font-semibold text-gray-900 mb-8">
-                Financial Overview
-              </h2>
+              <div className="flex items-center justify-between mb-8">
+                <h2 className="text-2xl font-semibold text-gray-900">
+                  Financial Overview
+                </h2>
+                {!isLoadingAnalysis && !analysisError && (
+                  <span className="text-xs text-gray-500 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                    Hover for calculation details
+                  </span>
+                )}
+              </div>
 
               {isLoadingAnalysis ? (
                 <div className="grid grid-cols-2 gap-6">
@@ -508,47 +584,175 @@ function ResultsContent() {
               ) : (
                 <div className="grid grid-cols-2 gap-6">
                 {/* Installation Cost */}
-                <div className="bg-blue-50 rounded-xl p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <svg className="w-7 h-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <div className="bg-blue-50 rounded-xl p-6 relative group cursor-help transition-all hover:shadow-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-7 h-7 text-blue-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-lg text-gray-600">Installation Cost</span>
+                    </div>
+                    <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="text-lg text-gray-600">Installation Cost</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900">€{results.installationCost.toLocaleString()}</p>
+                  
+                  {/* Hover Tooltip */}
+                  <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border-2 border-blue-200 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                    <div className="text-sm space-y-2">
+                      <div className="font-semibold text-blue-900 mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        How We Calculated This
+                      </div>
+                      <div className="flex justify-between text-gray-700">
+                        <span>System capacity:</span>
+                        <span className="font-mono font-semibold">{results.capacity} kW</span>
+                      </div>
+                      <div className="flex justify-between text-gray-700">
+                        <span>Cost per kW:</span>
+                        <span className="font-mono font-semibold">€1,200</span>
+                      </div>
+                      <div className="border-t border-blue-200 pt-2 mt-2 flex justify-between font-semibold text-blue-900">
+                        <span>Total:</span>
+                        <span className="font-mono text-sm">{results.capacity} × €1,200</span>
+                      </div>
+                      <p className="text-xs text-blue-600 mt-3 pt-2 border-t border-blue-100">
+                        Based on average Irish solar installation costs in 2024
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Payback Period */}
-                <div className="bg-purple-50 rounded-xl p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <svg className="w-7 h-7 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                <div className="bg-purple-50 rounded-xl p-6 relative group cursor-help transition-all hover:shadow-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-7 h-7 text-purple-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                      <span className="text-lg text-gray-600">Payback Period</span>
+                    </div>
+                    <svg className="w-4 h-4 text-purple-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="text-lg text-gray-600">Payback Period</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900">{results.paybackPeriod} years</p>
+                  
+                  {/* Hover Tooltip */}
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border-2 border-purple-200 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                    <div className="text-sm space-y-2">
+                      <div className="font-semibold text-purple-900 mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        How We Calculated This
+                      </div>
+                      <div className="flex justify-between text-gray-700">
+                        <span>Total investment:</span>
+                        <span className="font-mono font-semibold">€{results.installationCost.toLocaleString()}</span>
+                      </div>
+                      <div className="flex justify-between text-gray-700">
+                        <span>Annual savings:</span>
+                        <span className="font-mono font-semibold">€{results.annualSavings.toLocaleString()}</span>
+                      </div>
+                      <div className="border-t border-purple-200 pt-2 mt-2 flex justify-between font-semibold text-purple-900">
+                        <span>Payback:</span>
+                        <span className="font-mono text-sm">€{results.installationCost.toLocaleString()} ÷ €{results.annualSavings.toLocaleString()}</span>
+                      </div>
+                      <p className="text-xs text-purple-600 mt-3 pt-2 border-t border-purple-100">
+                        After this period, you'll have free electricity for 25+ years
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* Annual Savings */}
-                <div className="bg-green-50 rounded-xl p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                <div className="bg-green-50 rounded-xl p-6 relative group cursor-help transition-all hover:shadow-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-7 h-7 text-green-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                      <span className="text-lg text-gray-600">Annual Savings</span>
+                    </div>
+                    <svg className="w-4 h-4 text-green-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="text-lg text-gray-600">Annual Savings</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900">€{results.annualSavings.toLocaleString()}</p>
+                  
+                  {/* Hover Tooltip */}
+                  <div className="absolute left-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border-2 border-green-200 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                    <div className="text-sm space-y-2">
+                      <div className="font-semibold text-green-900 mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        How We Calculated This
+                      </div>
+                      <div className="flex justify-between text-gray-700">
+                        <span>Annual energy:</span>
+                        <span className="font-mono font-semibold">{(results.annualSavings / 0.30).toFixed(0)} kWh</span>
+                      </div>
+                      <div className="flex justify-between text-gray-700">
+                        <span>Electricity rate:</span>
+                        <span className="font-mono font-semibold">€0.30/kWh</span>
+                      </div>
+                      <div className="border-t border-green-200 pt-2 mt-2 flex justify-between font-semibold text-green-900">
+                        <span>Total:</span>
+                        <span className="font-mono text-sm">{(results.annualSavings / 0.30).toFixed(0)} × €0.30</span>
+                      </div>
+                      <p className="text-xs text-green-600 mt-3 pt-2 border-t border-green-100">
+                        Based on average Irish household electricity prices
+                      </p>
+                    </div>
+                  </div>
                 </div>
 
                 {/* CO2 Reduction */}
-                <div className="bg-teal-50 rounded-xl p-6">
-                  <div className="flex items-center gap-2 mb-4">
-                    <svg className="w-7 h-7 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                <div className="bg-teal-50 rounded-xl p-6 relative group cursor-help transition-all hover:shadow-lg">
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-2">
+                      <svg className="w-7 h-7 text-teal-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                      <span className="text-lg text-gray-600">CO₂ Reduction</span>
+                    </div>
+                    <svg className="w-4 h-4 text-teal-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <span className="text-lg text-gray-600">CO₂ Reduction</span>
                   </div>
                   <p className="text-2xl font-bold text-gray-900">{results.co2Reduction.toLocaleString()} kg</p>
+                  
+                  {/* Hover Tooltip */}
+                  <div className="absolute right-0 top-full mt-2 w-80 bg-white rounded-lg shadow-xl border-2 border-teal-200 p-4 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-200 z-10">
+                    <div className="text-sm space-y-2">
+                      <div className="font-semibold text-teal-900 mb-3 flex items-center gap-2">
+                        <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                        </svg>
+                        How We Calculated This
+                      </div>
+                      <div className="flex justify-between text-gray-700">
+                        <span>Annual energy:</span>
+                        <span className="font-mono font-semibold">{(results.co2Reduction / 0.4).toFixed(0)} kWh</span>
+                      </div>
+                      <div className="flex justify-between text-gray-700">
+                        <span>CO₂ intensity:</span>
+                        <span className="font-mono font-semibold">0.4 kg/kWh</span>
+                      </div>
+                      <div className="border-t border-teal-200 pt-2 mt-2 flex justify-between font-semibold text-teal-900">
+                        <span>CO₂ saved:</span>
+                        <span className="font-mono text-sm">{(results.co2Reduction / 0.4).toFixed(0)} × 0.4</span>
+                      </div>
+                      <p className="text-xs text-teal-600 mt-3 pt-2 border-t border-teal-100">
+                        Equivalent to planting {Math.round(results.co2Reduction / 20)} trees per year
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
               )}
@@ -578,7 +782,7 @@ function ResultsContent() {
                   Share costs with neighbours and reduce investment by up to 40%
                 </p>
                 <button 
-                  onClick={() => router.push('/coops')}
+                  onClick={() => router.push(`/coops?lat=${lat}&lng=${lng}&address=${encodeURIComponent(results.address)}`)}
                   className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors"
                 >
                   Explore Co-op Options

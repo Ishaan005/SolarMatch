@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Query, HTTPException
+from fastapi import FastAPI, Query, HTTPException, Body
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import Response
 from typing import Optional
@@ -6,12 +6,21 @@ from pydantic import BaseModel
 from core.solar_api import solar_client
 from core.config import settings
 from core.geotiff_processor import geotiff_processor
-from core.resultMath import SolarAnalysis
 from core.unified_solar_service import unified_solar_service
 # Import chatbot components
 from core.chatbot import ChatbotService, ChatRequest, ChatResponse
 from core.chatbot.models import PredefinedQuestionsResponse, HealthCheckResponse as ChatbotHealthResponse
 
+from core.community_service import community_service
+from models.coop_models import (
+    CommunityStatus, CreateCommunityRequest, JoinCommunityRequest
+)
+from core.database import init_database, create_tables
+import logging
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 app = FastAPI(title="SolarMatch API")
 
@@ -26,18 +35,40 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
 @app.on_event("startup")
 async def startup_event():
-    """Initialize services on startup"""
-    global chatbot_service
-    try:
-        chatbot_service = ChatbotService()
-        await chatbot_service.initialize()
-        print("✅ Chatbot service initialized successfully")
-    except Exception as e:
-        print(f"⚠️ Warning: Chatbot service initialization failed: {e}")
-        # Create a dummy service so the app doesn't crash
-        chatbot_service = ChatbotService()
+    """Initialize database connection on startup"""
+    logger.info("Starting up SolarMatch API...")
+    
+    # Initialize database
+    db_initialized = init_database()
+    if db_initialized:
+        logger.info("✓ Database connection established")
+        
+        # Create tables if they don't exist
+        try:
+            create_tables()
+            logger.info("✓ Database tables verified/created")
+        except Exception as e:
+            logger.warning(f"Could not create tables (they may already exist): {e}")
+        
+        # IMPORTANT: Reset the repository's cached database check
+        # This ensures the repository knows the database is now available
+        community_service.repository.reset_database_cache()
+        logger.info("✓ Repository configured to use database")
+        
+        # Initialize sample community data (only if database is empty)
+        community_service.ensure_sample_data()
+    else:
+        logger.warning("⚠ Database not configured - using in-memory storage for community features")
+        logger.info("  To enable database: Set DATABASE_URL in .env file")
+        # Still initialize sample data for in-memory storage
+        community_service.ensure_sample_data()
+    
+    logger.info("SolarMatch API ready!")
+
 
 @app.get("/")
 async def root():
@@ -521,3 +552,142 @@ async def chatbot_health_check():
     health = await chatbot_service.health_check()
     return health
 
+
+
+# Community Solar Coordination Platform Endpoints
+
+@app.get("/api/coops/search")
+async def search_communities(
+    latitude: Optional[float] = Query(None, description="User's latitude for distance calculation"),
+    longitude: Optional[float] = Query(None, description="User's longitude for distance calculation"),
+    max_distance_km: Optional[float] = Query(50.0, description="Maximum distance in km"),
+    county: Optional[str] = Query(None, description="Filter by county"),
+    status: Optional[str] = Query(None, description="Filter by status (planning, coordinating, active)"),
+    accepting_participants: bool = Query(True, description="Only show communities accepting participants")
+):
+    """
+    Search for community solar projects near a location.
+    
+    Returns list of communities with:
+    - Basic info (name, description, location)
+    - Distance from user
+    - Participation status
+    - Bulk discount percentage
+    - Aggregate solar potential
+    """
+    try:
+        # Parse status filter
+        status_filter = None
+        if status:
+            try:
+                status_filter = [CommunityStatus(status)]
+            except ValueError:
+                pass
+        
+        results = await community_service.search_communities(
+            latitude=latitude,
+            longitude=longitude,
+            max_distance_km=max_distance_km or 50.0,
+            county=county,
+            status=status_filter,
+            accepting_participants=accepting_participants
+        )
+        
+        return {
+            "count": len(results),
+            "coops": results  # Keep 'coops' key for frontend compatibility
+        }
+        
+    except Exception as e:
+        print(f"Error searching communities: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error searching communities: {str(e)}")
+
+
+@app.get("/api/coops/{coop_id}")
+async def get_community_details(coop_id: str):
+    """
+    Get detailed information about a specific community project.
+    
+    Returns complete community data including:
+    - Aggregate solar potential
+    - Participant information
+    - Bulk discount estimates
+    - Coordinator contact
+    """
+    community = community_service.get_community(coop_id)
+    
+    if not community:
+        raise HTTPException(status_code=404, detail="Community not found")
+    
+    return community
+
+
+@app.get("/api/coops/{coop_id}/dashboard")
+async def get_community_dashboard(coop_id: str):
+    """
+    Get dashboard data for a community project.
+    
+    Returns:
+    - Participation metrics
+    - Aggregate energy potential
+    - Cost savings from coordination
+    - Environmental impact
+    """
+    dashboard = community_service.get_community_dashboard(coop_id)
+    
+    if not dashboard:
+        raise HTTPException(status_code=404, detail="Community not found")
+    
+    return dashboard
+
+
+@app.post("/api/coops/create")
+async def create_community(request: CreateCommunityRequest):
+    """
+    Create a new community solar coordination project.
+    
+    Initializes a community project for coordinating solar installations.
+    No shares or investments - just collaborative planning for bulk discounts.
+    
+    The community starts in PLANNING status.
+    """
+    try:
+        print(f"Received create request: {request}")
+        result = await community_service.create_community(request)
+        return {
+            "success": True,
+            "community_id": result["community_id"],
+            "coop_id": result["community_id"],  # Keep for frontend compatibility
+            "coop": result["community"]  # Keep for frontend compatibility
+        }
+    except Exception as e:
+        print(f"Error creating community: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Error creating community: {str(e)}")
+
+
+@app.post("/api/coops/join")
+async def join_community(request: JoinCommunityRequest):
+    """
+    Join a community solar project.
+    
+    Adds your home to the community coordination effort.
+    Optionally performs solar analysis on your specific address.
+    
+    No payment required - just coordination and planning.
+    """
+    try:
+        result = await community_service.join_community(request)
+        return {
+            "success": True,
+            "participant_id": result["participant_id"],
+            "member_id": result["participant_id"],  # Keep for frontend compatibility
+            "message": "Successfully joined community project",
+            "member": result["participant"]  # Keep for frontend compatibility
+        }
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except Exception as e:
+        print(f"Error joining community: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Error joining community: {str(e)}")

@@ -14,14 +14,54 @@ source venv/bin/activate  # On macOS/Linux
 pip install -r requirements.txt
 ```
 
-3. Set up your Google Solar API key:
-   - Get your API key from [Google Cloud Console](https://console.cloud.google.com/)
-   - Enable the Solar API for your project
-   - Copy `.env.example` to `.env` and add your API key:
+3. Set up environment variables:
+   - Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
-# Edit .env and replace YOUR_API_KEY with your actual Google Solar API key
 ```
+
+4. Configure APIs:
+   - **Google Solar API**: Get your API key from [Google Cloud Console](https://console.cloud.google.com/)
+   - Edit `.env` and add your Google Solar API key
+   - **Database** (Optional for community features):
+     - See [Cloud SQL Setup Guide](docs/CLOUD_SQL_SETUP.md) for full instructions
+     - Or run the setup script: `./setup_cloud_sql.sh`
+     - Without database: Community features use in-memory storage (data lost on restart)
+
+## Database Setup (Optional)
+
+The community solar coordination feature can use either:
+- **In-memory storage** (default) - No setup required, data not persisted
+- **Cloud SQL PostgreSQL** (recommended for production) - Data persisted to Google Cloud SQL
+
+### Quick Start with Cloud SQL
+
+```bash
+# Run automated setup script
+./setup_cloud_sql.sh
+
+# Or follow manual instructions
+See docs/CLOUD_SQL_SETUP.md for detailed setup guide
+```
+
+### Database Management
+
+```bash
+# Check database status
+python manage_db.py status
+
+# Initialize tables (first time)
+python manage_db.py init
+
+# Reset database (development only - DELETES ALL DATA)
+python manage_db.py reset
+```
+
+The application will automatically:
+- ✅ Use PostgreSQL if DATABASE_URL is configured
+- ✅ Fall back to in-memory storage if not configured
+- ✅ Create tables on first startup
+- ✅ Show database status in startup logs
 
 ## Running the Backend
 
@@ -30,9 +70,12 @@ cp .env.example .env
 uvicorn main:app --reload --port 8000
 ```
 
-Or with custom host and port:
-```bash
-uvicorn main:app --reload --host 0.0.0.0 --port 8000
+You should see:
+```
+✓ Database connection established     <- If DATABASE_URL is set
+✓ Database tables verified/created    <- Tables created successfully
+⚠ Database not configured            <- If DATABASE_URL not set (uses in-memory)
+SolarMatch API ready!
 ```
 
 ### Production Mode
