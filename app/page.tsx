@@ -1,7 +1,7 @@
 import Header from "../components/Header"
 import Hero from "../components/Hero"
 import FeatureCard from "../components/FeatureCard"
-import FloatingHelp from "../components/FloatingHelp"
+import ChatWidget from "../components/ChatWidget"
 
 const MapPinIcon = () => (
   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -55,7 +55,7 @@ export default function Home(){
           </div>
         </section>
       </main>
-      <FloatingHelp />
+      <ChatWidget />
     </div>
   )
 }
