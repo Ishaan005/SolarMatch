@@ -572,7 +572,7 @@ function ResultsContent() {
                   Share costs with neighbours and reduce investment by up to 40%
                 </p>
                 <button 
-                  onClick={() => router.push('/coops')}
+                  onClick={() => router.push(`/coops?lat=${lat}&lng=${lng}&address=${encodeURIComponent(results.address)}`)}
                   className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-xs font-medium transition-colors"
                 >
                   Explore Co-op Options
