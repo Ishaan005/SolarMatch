@@ -33,25 +33,57 @@ const UsersIcon = () => (
 
 export default function Home(){
   return (
-    <div className="min-h-screen bg-gradient-to-b from-amber-50/30 via-orange-50/20 to-yellow-50/30">
+    <div className="min-h-screen bg-gradient-to-b from-white via-amber-50/20 to-orange-50/30">
       <Header />
       <main>
         <Hero />
 
-        <section className="max-w-7xl mx-auto px-6 pb-24 pt-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 justify-items-center text-gray-900">
-            <FeatureCard title="Satellite Analysis" color="bg-blue-50/90" icon={<MapPinIcon />}>
-              AI-powered rooftop identification using satellite imagery
-            </FeatureCard>
-            <FeatureCard title="Cost & Savings" color="bg-amber-50/90" icon={<SunIcon />}>
-              Instant estimates on installation costs and payback period
-            </FeatureCard>
-            <FeatureCard title="CO₂ Reduction" color="bg-emerald-50/90" icon={<TrendingDownIcon />}>
-              See your environmental impact and carbon savings
-            </FeatureCard>
-            <FeatureCard title="Solar Co-ops" color="bg-purple-50/90" icon={<UsersIcon />}>
-              Join neighbours to share costs and go solar together
-            </FeatureCard>
+        <section className="relative py-12 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/50 to-white pointer-events-none"></div>
+          <div className="absolute top-0 left-1/4 w-64 h-64 bg-blue-100/20 rounded-full blur-3xl"></div>
+          <div className="absolute bottom-0 right-1/4 w-64 h-64 bg-orange-100/20 rounded-full blur-3xl"></div>
+          
+          <div className="max-w-6xl mx-auto px-6 relative z-10">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-2">
+                How SolarMatch Works
+              </h2>
+              <p className="text-gray-600 max-w-xl mx-auto text-sm">
+                Four powerful features to help you make the switch to solar energy
+              </p>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 justify-items-center mb-10">
+              <FeatureCard title="Satellite Analysis" color="bg-gradient-to-br from-blue-50 to-blue-100/50" icon={<MapPinIcon />}>
+                AI-powered rooftop identification using satellite imagery
+              </FeatureCard>
+              <FeatureCard title="Cost & Savings" color="bg-gradient-to-br from-amber-50 to-orange-100/50" icon={<SunIcon />}>
+                Instant estimates on installation costs and payback period
+              </FeatureCard>
+              <FeatureCard title="CO₂ Reduction" color="bg-gradient-to-br from-emerald-50 to-green-100/50" icon={<TrendingDownIcon />}>
+                See your environmental impact and carbon savings
+              </FeatureCard>
+              <FeatureCard title="Solar Co-ops" color="bg-gradient-to-br from-purple-50 to-purple-100/50" icon={<UsersIcon />}>
+                Join neighbours to share costs and go solar together
+              </FeatureCard>
+            </div>
+
+            <div className="bg-white/60 backdrop-blur-sm rounded-xl shadow-sm border border-gray-200/50 p-6">
+              <div className="grid grid-cols-3 gap-6 text-center">
+                <div>
+                  <div className="text-3xl font-bold text-orange-600 mb-1">100%</div>
+                  <div className="text-xs text-gray-600 font-medium">Free Analysis</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-orange-600 mb-1">&lt;1min</div>
+                  <div className="text-xs text-gray-600 font-medium">Instant Results</div>
+                </div>
+                <div>
+                  <div className="text-3xl font-bold text-orange-600 mb-1">€1000s</div>
+                  <div className="text-xs text-gray-600 font-medium">Potential Savings</div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
       </main>
