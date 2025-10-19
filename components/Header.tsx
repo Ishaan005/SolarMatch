@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState } from "react"
+import React, { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
@@ -9,9 +9,25 @@ export default function Header(){
   const isHomePage = pathname === "/"
   const [isDark, setIsDark] = useState(false)
 
+  // Load saved theme preference on mount
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme')
+    const isDarkMode = savedTheme === 'dark'
+    setIsDark(isDarkMode)
+    
+    if (isDarkMode) {
+      document.documentElement.classList.add('dark')
+      document.documentElement.style.filter = 'invert(1) hue-rotate(180deg)'
+    }
+  }, [])
+
   const handleThemeToggle = (e: React.ChangeEvent<HTMLInputElement>) => {
     const checked = e.target.checked
     setIsDark(checked)
+    
+    // Save preference to localStorage
+    localStorage.setItem('theme', checked ? 'dark' : 'light')
+    
     if (checked) {
       document.documentElement.classList.add('dark')
       document.documentElement.style.filter = 'invert(1) hue-rotate(180deg)'
