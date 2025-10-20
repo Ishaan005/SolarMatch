@@ -172,7 +172,7 @@ function CreateCoopContent() {
                   value={formData.name}
                   onChange={handleInputChange}
                   placeholder="e.g., Ballyduff Community Solar"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-900 placeholder:text-gray-400"
                 />
               </div>
 
@@ -186,7 +186,7 @@ function CreateCoopContent() {
                   onChange={handleInputChange}
                   placeholder="Describe your solar project, its goals, and how it will benefit the community..."
                   rows={4}
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-900 placeholder:text-gray-400"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   {formData.description.length}/20 characters minimum
@@ -203,7 +203,7 @@ function CreateCoopContent() {
                   value={formData.county}
                   onChange={handleInputChange}
                   placeholder="e.g., Waterford"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-900 placeholder:text-gray-400"
                 />
               </div>
 
@@ -251,7 +251,7 @@ function CreateCoopContent() {
                   value={formData.coordinatorName}
                   onChange={handleInputChange}
                   placeholder="John Smith"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-900 placeholder:text-gray-400"
                 />
               </div>
 
@@ -265,7 +265,7 @@ function CreateCoopContent() {
                   value={formData.coordinatorContact}
                   onChange={handleInputChange}
                   placeholder="john@example.com"
-                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500"
+                  className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-purple-500 bg-white text-gray-900 placeholder:text-gray-400"
                 />
                 <p className="text-xs text-gray-500 mt-1">
                   Neighbours will use this to contact you about joining the community project
